@@ -15,6 +15,9 @@ members = [
 version = "0.1.0"
 path = "./kekbit_core"
 
+[badges]
+travis-ci = { repository = "motoras/kekbit", branch = "master" }
+
 
 [profile.dev]
 opt-level = 0 

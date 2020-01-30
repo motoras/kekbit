@@ -1,10 +1,10 @@
 # KeKBiT
 [![Build Status](https://travis-ci.org/motoras/kekbit.svg?branch=master)](https://travis-ci.org/motoras/kekbit)
-[![codecov](https://codecov.io/gh/motoras/kekbit/branch/master/graph/badge.svg)](https://codecov.io/gh/motoras/kekbit) 
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](
 https://github.com/motoras/kekbit)
 [![Rust 1.31+](https://img.shields.io/badge/rust-1.31+-informational.svg)](
 https://www.rust-lang.org)
+
 
 A set of simple, mean and lean components for working with ultralight persistent data channels in rust. Channels could be used for communication, journaling, application state replication, or for data prevalence systems.
 
