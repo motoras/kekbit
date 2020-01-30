@@ -11,7 +11,7 @@ use std::sync::atomic::Ordering;
 static HEARTBEAT_MSG: &[u8] = &[];
 
 #[derive(Debug)]
-pub struct Writer {
+pub struct ShmWriter {
     data_ptr: *mut u8,
     capacity: u32,
     max_msg_len: u32,
@@ -21,9 +21,9 @@ pub struct Writer {
     mmap: MmapMut,
 }
 
-impl Writer {
+impl ShmWriter {
     #[allow(clippy::cast_ptr_alignment)]
-    pub fn new(mut mmap: MmapMut) -> Result<Writer, String> {
+    pub fn new(mut mmap: MmapMut) -> Result<ShmWriter, String> {
         let buf = &mut mmap[..];
         header::check_header(&buf)?;
         let header_ptr = buf.as_ptr() as *mut u64;
@@ -32,7 +32,7 @@ impl Writer {
         let timeout = header::prod_timeout(buf) * 2;
         let tick_unit = header::tick_unit(buf);
         let data_ptr = unsafe { header_ptr.add(header::HEADER_LEN as usize) } as *mut u8;
-        let mut writer = Writer {
+        let mut writer = ShmWriter {
             data_ptr,
             capacity,
             max_msg_len,
@@ -61,7 +61,7 @@ impl Writer {
     }
 }
 
-impl Writer {
+impl ShmWriter {
     #[allow(clippy::cast_ptr_alignment)]
     pub fn write(&mut self, data: &[u8], len: u32) -> Result<u32, WriteError> {
         if len > self.max_msg_len {
@@ -112,7 +112,7 @@ impl Writer {
         self.mmap.flush()
     }
 }
-impl Drop for Writer {
+impl Drop for ShmWriter {
     fn drop(&mut self) {
         //TODO account for the state of the file...
         let buf = &mut self.mmap[..];
@@ -122,7 +122,6 @@ impl Drop for Writer {
             #[allow(clippy::cast_ptr_alignment)]
             let write_ptr = self.data_ptr.offset(write_index as isize) as *mut u64;
             store_atomic_u64(write_ptr, CLOSE, Ordering::Release);
-            //write_volatile(write_ptr, CLOSE);
             info!("Closing message sent")
         }
         if header::set_status(buf, header::Status::Closed(self.tick_unit.nix_time())).is_ok() {
@@ -138,7 +137,7 @@ impl Drop for Writer {
         }
     }
 }
-impl Writer {
+impl ShmWriter {
     #[inline]
     pub fn available(&self) -> u32 {
         self.capacity - self.write_offset

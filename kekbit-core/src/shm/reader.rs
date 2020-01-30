@@ -10,7 +10,7 @@ use std::sync::atomic::Ordering;
 
 const END_OF_TIME: u64 = std::u64::MAX; //this should be good for any time unit including nanos
 
-pub struct Reader {
+pub struct ShmReader {
     capacity: u32,
     max_msg_len: u64,
     timeout: u64,
@@ -21,9 +21,9 @@ pub struct Reader {
     _mmap: MmapMut,
 }
 
-impl Reader {
+impl ShmReader {
     #[allow(clippy::cast_ptr_alignment)]
-    pub fn new(mut mmap: MmapMut) -> Result<Reader, String> {
+    pub fn new(mut mmap: MmapMut) -> Result<ShmReader, String> {
         let buf = &mut mmap[..];
         header::check_header(&buf)?;
         let capacity = header::capacity(buf);
@@ -33,7 +33,7 @@ impl Reader {
         let header_ptr = buf.as_ptr() as *mut u64;
         let data_ptr = unsafe { header_ptr.add(header::HEADER_LEN as usize) } as *mut u8;
         info!("Kekbit Reader succesfully created");
-        Ok(Reader {
+        Ok(ShmReader {
             capacity,
             max_msg_len,
             timeout,

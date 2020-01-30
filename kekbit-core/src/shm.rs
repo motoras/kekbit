@@ -1,7 +1,7 @@
 pub mod reader;
-use reader::Reader;
+use reader::ShmReader;
 pub mod writer;
-use writer::Writer;
+use writer::ShmWriter;
 
 use crate::header::{write_header, HEADER_LEN};
 use crate::tick::TickUnit;
@@ -21,7 +21,7 @@ pub fn shm_reader(
     producer_id: u64,
     channel_id: u64,
     file_id: u64,
-) -> Result<Reader, String> {
+) -> Result<ShmReader, String> {
     let dir_path = root_path
         .join(channel_id.to_string())
         .join(producer_id.to_string());
@@ -33,7 +33,7 @@ pub fn shm_reader(
         .unwrap();
     info!("Kekbit file {:?} opened for read.", kek_file);
     let mmap = unsafe { MmapOptions::new().map_mut(&kek_file).unwrap() };
-    Reader::new(mmap)
+    ShmReader::new(mmap)
 }
 
 pub fn shm_writer(
@@ -44,7 +44,7 @@ pub fn shm_writer(
     len: u32,
     timeout: u64,
     tick_unit: TickUnit,
-) -> Result<Writer, String> {
+) -> Result<ShmWriter, String> {
     let dir_path = root_path
         .join(channel_id.to_string())
         .join(producer_id.to_string());
@@ -83,7 +83,7 @@ pub fn shm_writer(
     );
     mmap.flush().unwrap();
     info!("Kekbit file {:?} initialized", kek_file_name);
-    let res = Writer::new(mmap);
+    let res = ShmWriter::new(mmap);
     if res.is_err() {
         error!(
             "Kekbit writer creation error . The file {:?} will be removed!",
