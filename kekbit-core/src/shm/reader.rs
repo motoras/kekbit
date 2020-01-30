@@ -115,21 +115,14 @@ impl Reader for ShmReader {
         }
         if msg_read > 0 {
             self.expiration = END_OF_TIME;
-        } else {
-            if self.expiration == END_OF_TIME {
-                //start the timeout clock
-                self.expiration = self.tick_unit.nix_time() + self.timeout;
-            } else {
-                if self.expiration <= self.tick_unit.nix_time() {
-                    warn!(
-                        "Writer timeout detected. Channel will be abnadoned. No more reads will be performed"
-                    );
-                    return Err(ReadError::Timeout {
-                        bytes_read: self.read_index - bytes_at_start,
-                        timeout: self.expiration,
-                    });
-                }
-            }
+        } else if self.expiration == END_OF_TIME {
+            self.expiration = self.tick_unit.nix_time() + self.timeout; //start the timeout clock
+        } else if self.expiration <= self.tick_unit.nix_time() {
+            warn!("Writer timeout detected. Channel will be abnadoned. No more reads will be performed");
+            return Err(ReadError::Timeout {
+                bytes_read: self.read_index - bytes_at_start,
+                timeout: self.expiration,
+            });
         }
         Ok(self.read_index - bytes_at_start)
     }
