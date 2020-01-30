@@ -1,28 +1,30 @@
-# KeKBiT
+# KekbiT
 [![Build Status](https://travis-ci.org/motoras/kekbit.svg?branch=master)](https://travis-ci.org/motoras/kekbit)
 ![GitHub](https://img.shields.io/github/license/motoras/kekbit?style=flat-square)
 [![Rust 1.31+](https://img.shields.io/badge/rust-1.31+-informational.svg)](
 https://www.rust-lang.org)
 
 
-A set of simple, mean and lean components for working with ultralight persistent data channels in rust. Channels could be used for communication, journaling, application state replication, or for data prevalence systems.
+A set of mean and lean components for working with ultralight **persistent data channels** in rust. Such channels could be used for communication, transaction journaling, live mirroring of an application state or as a backend for persisting software system images.
 
-#### Persistent data channel
-* Are a mecahnism to sequentially persist data very fast
-* They are **writer bound** - it is a writer which creates them and specify the particular structure of a channel such size, maximum record lenght, or writer timeout
-* Have a fixed size which cannot be changed. 
-* Once a channel is closed, full or abandoned it will never be used again for writing. 
-* They are always backed by a file, using a storage filesystem with RAM for the backing store such as tempfs or /dev/shm could provide blazing fast speeds
+## Basic Concepts
 
-#### Readers and  Writers
+#### Persistent data channels
+* Are a mechanism to sequentially persist data at a very fast rate
+* They are **writer bound** - it is a writer which creates them and specify the particular structure of a channel such size, maximum record length, or timeout
+* They have a fixed predefined capacity which cannot be changed. 
+* Once a channel is closed, full, or abandoned it will never be used again for writing.
+* They are backed by a file; using a filesystem with RAM for the backing store such as tempfs or /dev/shm could provide blazing fast speeds
 
-* [`Writer`], a component which writes data into a persitent channel. To each channel only one writer should be assigned. 
-* [`Reader`], the core component which reads from a channel. Multiple readers could read at a given time from a channel at their own pace. This allows data channel data to be consumend multiple times, or and in paralel by different  readers.
+#### Writers and Readers
+* Writers are components which push data into a persistent channel. For each channel there is only one writer.
+* Readers are components which poll data from a channel. Multiple readers could read at any given time from a channel, at their own pace, so the data available in the channel could be consumend multiple times, and in paralel by various readers.
 
 
-## Crates
+## Components
 The main kekbit crate just re-exports components from its subcrates:
-* [`kekbit-core`](kekbit-core) defines theprovides the main queue components. 
+* [`kekbit-core`](kekbit-core)  defines the [`Writer`] and [`Reader`] traits together with the [`ShmWriter`] and [`ShmReader`] implementations which provide write and read operations for memory mapped channels.
+ 
 
 ## Usage
 
