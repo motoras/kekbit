@@ -120,9 +120,8 @@ fn do_write_header(
     header[64] = tick_unit.id();
     header[65..73].clone_from_slice(&creation_time.to_le_bytes()); //status time
     let last = 73;
-    for i in last..HEADER_LEN {
-        //pad up to HEADER_LEN
-        header[i] = 0;
+    for item in header.iter_mut().take(HEADER_LEN).skip(last) {
+        *item = 0u8;
     }
     HEADER_LEN
 }

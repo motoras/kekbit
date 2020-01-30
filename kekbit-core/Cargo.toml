@@ -1,5 +1,5 @@
 [package]
-name = "kekbit_core"
+name = "kekbit-core"
 version = "0.1.0"
 authors = ["motoras <motoras@gmail.com>"]
 edition = "2018"

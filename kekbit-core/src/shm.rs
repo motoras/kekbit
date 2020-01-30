@@ -1,8 +1,9 @@
+pub mod reader;
+use reader::ShmReader;
+pub mod writer;
 use crate::header::{write_header, HEADER_LEN};
-use crate::reader::Reader;
 use crate::tick::TickUnit;
 use crate::utils::{align, compute_max_msg_len, MIN_CAPACITY};
-use crate::writer::Writer;
 use log::{error, info};
 use memmap::MmapOptions;
 use std::cmp::max;
@@ -12,13 +13,14 @@ use std::fs::{remove_file, DirBuilder};
 use std::ops::Shl;
 use std::path::Path;
 use std::result::Result;
+use writer::ShmWriter;
 
-pub fn create_reader(
+pub fn shm_reader(
     root_path: &Path,
     producer_id: u64,
     channel_id: u64,
     file_id: u64,
-) -> Result<Reader, String> {
+) -> Result<ShmReader, String> {
     let dir_path = root_path
         .join(channel_id.to_string())
         .join(producer_id.to_string());
@@ -30,10 +32,10 @@ pub fn create_reader(
         .unwrap();
     info!("Kekbit file {:?} opened for read.", kek_file);
     let mmap = unsafe { MmapOptions::new().map_mut(&kek_file).unwrap() };
-    Reader::new(mmap)
+    ShmReader::new(mmap)
 }
 
-pub fn create_writer(
+pub fn shm_writer(
     root_path: &Path,
     producer_id: u64,
     channel_id: u64,
@@ -41,7 +43,7 @@ pub fn create_writer(
     len: u32,
     timeout: u64,
     tick_unit: TickUnit,
-) -> Result<Writer, String> {
+) -> Result<ShmWriter, String> {
     let dir_path = root_path
         .join(channel_id.to_string())
         .join(producer_id.to_string());
@@ -80,7 +82,7 @@ pub fn create_writer(
     );
     mmap.flush().unwrap();
     info!("Kekbit file {:?} initialized", kek_file_name);
-    let res = Writer::new(mmap);
+    let res = ShmWriter::new(mmap);
     if res.is_err() {
         error!(
             "Kekbit writer creation error . The file {:?} will be removed!",
@@ -96,6 +98,7 @@ pub fn create_writer(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::api::{Reader, Writer};
     use crate::utils::{align, REC_HEADER_LEN};
     use std::sync::Once;
 
@@ -107,7 +110,7 @@ mod test {
             simple_logger::init().unwrap();
         });
         let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-        let mut writer = create_writer(
+        let mut writer = shm_writer(
             &test_tmp_dir.path(),
             100,
             100,
@@ -129,7 +132,7 @@ mod test {
             bytes_written += size;
             msg_count += 1;
         }
-        let mut reader = create_reader(&test_tmp_dir.path(), 100, 100, 1).unwrap();
+        let mut reader = shm_reader(&test_tmp_dir.path(), 100, 100, 1).unwrap();
         let mut res_msg = StrMsgsAppender::default();
         let bytes_read = reader
             .read(&mut |msg| res_msg.on_message(msg), msg_count + 10 as u16)

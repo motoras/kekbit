@@ -7,13 +7,12 @@ edition = "2018"
 [workspace]
 members = [
   ".",
-  "./kekbit_core",
-  
+  "kekbit-core",
 ]
 
-[dependencies.kekbit_core]
+[dependencies.kekbit-core]
 version = "0.1.0"
-path = "./kekbit_core"
+path = "./kekbit-core"
 
 [badges]
 travis-ci = { repository = "motoras/kekbit", branch = "master" }
