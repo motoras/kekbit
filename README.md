@@ -23,7 +23,7 @@ A set of simple, mean and lean components for working with ultralight persistent
 
 ## Crates
 The main kekbit crate just re-exports components from its subcrates:
-* [`kekbit-core`](kekbit-corel) provides the main queue components. 
+* [`kekbit-core`](kekbit-core) provides the main queue components. 
 
 ## Usage
 
@@ -36,7 +36,7 @@ kekbit = "0.1.0"
 
 ## Compatibility
 
-The minimum supported Rust version is 1.28. Any change to this is considered a breaking change.
+The minimum supported Rust version is 1.31. Any change to this is considered a breaking change.
 
 ## License
 
