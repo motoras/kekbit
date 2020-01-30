@@ -1,8 +1,6 @@
 pub mod reader;
 use reader::ShmReader;
 pub mod writer;
-use writer::ShmWriter;
-
 use crate::header::{write_header, HEADER_LEN};
 use crate::tick::TickUnit;
 use crate::utils::{align, compute_max_msg_len, MIN_CAPACITY};
@@ -15,6 +13,7 @@ use std::fs::{remove_file, DirBuilder};
 use std::ops::Shl;
 use std::path::Path;
 use std::result::Result;
+use writer::ShmWriter;
 
 pub fn shm_reader(
     root_path: &Path,
@@ -99,6 +98,7 @@ pub fn shm_writer(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::api::{Reader, Writer};
     use crate::utils::{align, REC_HEADER_LEN};
     use std::sync::Once;
 
