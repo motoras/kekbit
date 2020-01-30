@@ -1,3 +1,4 @@
+use crate::api::ReadError;
 use crate::header;
 use crate::tick::TickUnit;
 use crate::utils::{align, load_atomic_u64, CLOSE, REC_HEADER_LEN, U64_SIZE, WATERMARK};
@@ -7,32 +8,7 @@ use std::ops::FnMut;
 use std::result::Result;
 use std::sync::atomic::Ordering;
 
-pub enum ChannelState {
-    Open,
-    Timedout,
-    Closed,
-}
-
-const END_OF_TIME: u64 = std::u64::MAX; //this should be good for any tiem unit including nanos;
-
-#[derive(Debug)]
-pub enum ReadError {
-    Failed { bytes_read: u32 },
-    Timeout { bytes_read: u32, timeout: u64 },
-    Closed { bytes_read: u32 },
-    EndOfChannel { bytes_read: u32 },
-}
-
-impl ReadError {
-    pub fn bytes_read(&self) -> u32 {
-        match self {
-            ReadError::Timeout { bytes_read, .. } => *bytes_read,
-            ReadError::Closed { bytes_read } => *bytes_read,
-            ReadError::EndOfChannel { bytes_read } => *bytes_read,
-            ReadError::Failed { bytes_read } => *bytes_read,
-        }
-    }
-}
+const END_OF_TIME: u64 = std::u64::MAX; //this should be good for any time unit including nanos
 
 pub struct Reader {
     capacity: u32,

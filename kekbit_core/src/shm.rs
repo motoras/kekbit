@@ -1,8 +1,11 @@
+pub mod reader;
+use reader::Reader;
+pub mod writer;
+use writer::Writer;
+
 use crate::header::{write_header, HEADER_LEN};
-use crate::reader::Reader;
 use crate::tick::TickUnit;
 use crate::utils::{align, compute_max_msg_len, MIN_CAPACITY};
-use crate::writer::Writer;
 use log::{error, info};
 use memmap::MmapOptions;
 use std::cmp::max;
@@ -13,7 +16,7 @@ use std::ops::Shl;
 use std::path::Path;
 use std::result::Result;
 
-pub fn create_reader(
+pub fn shm_reader(
     root_path: &Path,
     producer_id: u64,
     channel_id: u64,
@@ -33,7 +36,7 @@ pub fn create_reader(
     Reader::new(mmap)
 }
 
-pub fn create_writer(
+pub fn shm_writer(
     root_path: &Path,
     producer_id: u64,
     channel_id: u64,
@@ -107,7 +110,7 @@ mod test {
             simple_logger::init().unwrap();
         });
         let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-        let mut writer = create_writer(
+        let mut writer = shm_writer(
             &test_tmp_dir.path(),
             100,
             100,
@@ -129,7 +132,7 @@ mod test {
             bytes_written += size;
             msg_count += 1;
         }
-        let mut reader = create_reader(&test_tmp_dir.path(), 100, 100, 1).unwrap();
+        let mut reader = shm_reader(&test_tmp_dir.path(), 100, 100, 1).unwrap();
         let mut res_msg = StrMsgsAppender::default();
         let bytes_read = reader
             .read(&mut |msg| res_msg.on_message(msg), msg_count + 10 as u16)

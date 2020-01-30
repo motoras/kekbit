@@ -1,3 +1,4 @@
+use crate::api::WriteError;
 use crate::header;
 use crate::tick::TickUnit;
 use crate::utils::{align, store_atomic_u64, CLOSE, REC_HEADER_LEN, WATERMARK};
@@ -58,14 +59,6 @@ impl Writer {
             }
         }
     }
-}
-
-#[derive(Debug)]
-pub enum WriteError {
-    Closed,
-    ChannelTimeout { expired: u64, crt_timestamp: u64 },
-    NoSpaceAvailable { required: u32, left: u32 },
-    MaxRecordLenExceed { rec_len: u32, max_allowed: u32 },
 }
 
 impl Writer {
