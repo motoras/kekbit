@@ -203,14 +203,6 @@ pub fn status(header: &[u8]) -> Option<Status> {
     Status::from_id_and_ts(read_u64(header, 56), status_time(header))
 }
 
-pub fn is_open(header: &[u8]) -> bool {
-    let opt_status = status(header);
-    opt_status.map_or(false, |st| match st {
-        Status::Open(_) => true,
-        _ => false,
-    })
-}
-
 #[inline]
 pub fn set_status(header: &mut [u8], new_status: Status) -> Result<Status, String> {
     let status_opt = status(header);
