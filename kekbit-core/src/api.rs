@@ -24,3 +24,23 @@ impl ReadError {
         }
     }
 }
+static HEARTBEAT_MSG: &[u8] = &[];
+
+pub trait Reader {
+    fn read(
+        &mut self,
+        handler: &mut impl FnMut(&[u8]) -> (),
+        message_count: u16,
+    ) -> Result<u32, ReadError>;
+}
+
+pub trait Writer {
+    fn write(&mut self, data: &[u8], len: u32) -> Result<u32, WriteError>;
+    fn flush(&mut self) -> Result<(), std::io::Error> {
+        Ok(())
+    }
+    #[inline(always)]
+    fn heartbeat(&mut self) -> Result<u32, WriteError> {
+        self.write(HEARTBEAT_MSG, 0)
+    }
+}

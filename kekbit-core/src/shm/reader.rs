@@ -1,4 +1,4 @@
-use crate::api::ReadError;
+use crate::api::{ReadError, Reader};
 use crate::header;
 use crate::tick::TickUnit;
 use crate::utils::{align, load_atomic_u64, CLOSE, REC_HEADER_LEN, U64_SIZE, WATERMARK};
@@ -44,9 +44,18 @@ impl ShmReader {
             _mmap: mmap,
         })
     }
+    #[inline]
+    pub fn capacity(&self) -> u32 {
+        self.capacity
+    }
 
+    pub fn total_read(&self) -> u32 {
+        self.read_index
+    }
+}
+impl Reader for ShmReader {
     #[allow(clippy::cast_ptr_alignment)]
-    pub fn read(
+    fn read(
         &mut self,
         handler: &mut impl FnMut(&[u8]) -> (),
         message_count: u16,
@@ -123,13 +132,5 @@ impl ShmReader {
             }
         }
         Ok(self.read_index - bytes_at_start)
-    }
-    #[inline]
-    pub fn capacity(&self) -> u32 {
-        self.capacity
-    }
-
-    pub fn total_read(&self) -> u32 {
-        self.read_index
     }
 }

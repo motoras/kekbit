@@ -1,4 +1,4 @@
-use crate::api::WriteError;
+use crate::api::{WriteError, Writer};
 use crate::header;
 use crate::tick::TickUnit;
 use crate::utils::{align, store_atomic_u64, CLOSE, REC_HEADER_LEN, WATERMARK};
@@ -7,8 +7,6 @@ use memmap::MmapMut;
 use std::ptr::copy_nonoverlapping;
 use std::result::Result;
 use std::sync::atomic::Ordering;
-
-static HEARTBEAT_MSG: &[u8] = &[];
 
 #[derive(Debug)]
 pub struct ShmWriter {
@@ -59,11 +57,21 @@ impl ShmWriter {
             }
         }
     }
+
+    #[inline(always)]
+    unsafe fn write_metadata(&mut self, write_ptr: *mut u64, len: u64, aligned_rec_len: u32) {
+        store_atomic_u64(
+            write_ptr.add(aligned_rec_len as usize),
+            WATERMARK,
+            Ordering::Release,
+        );
+        store_atomic_u64(write_ptr, len, Ordering::Release);
+    }
 }
 
-impl ShmWriter {
+impl Writer for ShmWriter {
     #[allow(clippy::cast_ptr_alignment)]
-    pub fn write(&mut self, data: &[u8], len: u32) -> Result<u32, WriteError> {
+    fn write(&mut self, data: &[u8], len: u32) -> Result<u32, WriteError> {
         if len > self.max_msg_len {
             return Err(WriteError::MaxRecordLenExceed {
                 rec_len: len,
@@ -92,22 +100,8 @@ impl ShmWriter {
         Ok(aligned_rec_len as u32)
     }
 
-    #[inline(always)]
-    pub fn heartbeat(&mut self) -> Result<u32, WriteError> {
-        self.write(HEARTBEAT_MSG, 0)
-    }
-
-    #[inline(always)]
-    unsafe fn write_metadata(&mut self, write_ptr: *mut u64, len: u64, aligned_rec_len: u32) {
-        store_atomic_u64(
-            write_ptr.add(aligned_rec_len as usize),
-            WATERMARK,
-            Ordering::Release,
-        );
-        store_atomic_u64(write_ptr, len, Ordering::Release);
-    }
     #[inline]
-    pub fn flush(&mut self) -> Result<(), std::io::Error> {
+    fn flush(&mut self) -> Result<(), std::io::Error> {
         debug!("Flushing the channel");
         self.mmap.flush()
     }
