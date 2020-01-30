@@ -10,7 +10,6 @@ pub const LATEST: Version = V_0_0_1;
 #[derive(PartialEq, Debug)]
 pub enum Status {
     Open(u64),
-    Timedout(u64),
     Closed(u64),
     ForcedClosed(u64),
 }
@@ -22,7 +21,6 @@ impl Status {
             Status::Open(_) => 0,
             Status::Closed(_) => 255,
             Status::ForcedClosed(_) => 512,
-            Status::Timedout(_) => 1024,
         }
     }
     #[inline]
@@ -31,7 +29,6 @@ impl Status {
             0 => Some(Status::Open(timestamp)),
             255 => Some(Status::Closed(timestamp)),
             512 => Some(Status::ForcedClosed(timestamp)),
-            1024 => Some(Status::Timedout(timestamp)),
             _ => None,
         }
     }
@@ -41,7 +38,6 @@ impl Status {
             Status::Open(ts) => *ts,
             Status::Closed(ts) => *ts,
             Status::ForcedClosed(ts) => *ts,
-            Status::Timedout(ts) => *ts,
         }
     }
 }
@@ -52,7 +48,6 @@ impl Display for Status {
             Status::Open(_) => "Open",
             Status::Closed(_) => "Closed",
             Status::ForcedClosed(_) => "ForcedClosed",
-            Status::Timedout(_) => "Timedout",
         };
         write!(f, "{}", res)
     }
