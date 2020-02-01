@@ -1,15 +1,16 @@
 use std::fmt::{Display, Formatter, Result};
 use std::ops::Deref;
 
-pub const V_0_0_1: Version = Version { version: 1u64 };
+pub(crate) const V_0_0_1: Version = Version { version: 1u64 };
 
-#[derive(Copy, Clone, PartialEq, PartialOrd, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Debug)]
 pub struct Version {
     version: u64,
 }
 
 impl Version {
     #[inline]
+    #[allow(dead_code)]
     pub fn new(major: u16, minor: u16, patch: u32) -> Self {
         let mut v_u64 = 0u64;
         v_u64 |= u64::from(major) << 48;

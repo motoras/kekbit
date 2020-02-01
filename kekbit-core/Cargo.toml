@@ -12,3 +12,4 @@ log = "0.4.8"
 [dev-dependencies]
 tempdir = "0.3.7"
 simple_logger ="1.5.0"
+nix="0.16.1"

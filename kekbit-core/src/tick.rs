@@ -1,7 +1,7 @@
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub enum TickUnit {
     Nanos,
     Micros,

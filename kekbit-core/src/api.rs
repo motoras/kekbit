@@ -27,11 +27,7 @@ impl ReadError {
 static HEARTBEAT_MSG: &[u8] = &[];
 
 pub trait Reader {
-    fn read(
-        &mut self,
-        handler: &mut impl FnMut(&[u8]) -> (),
-        message_count: u16,
-    ) -> Result<u32, ReadError>;
+    fn read(&mut self, handler: &mut impl FnMut(&[u8]) -> (), message_count: u16) -> Result<u32, ReadError>;
 }
 
 pub trait Writer {
