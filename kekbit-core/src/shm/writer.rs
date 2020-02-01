@@ -1,8 +1,7 @@
 use crate::api::{WriteError, Writer};
-use crate::header;
-use crate::tick::TickUnit;
+use crate::header::Header;
 use crate::utils::{align, store_atomic_u64, CLOSE, REC_HEADER_LEN, WATERMARK};
-use log::{debug, error, info, warn};
+use log::{debug, error, info};
 use memmap::MmapMut;
 use std::ptr::copy_nonoverlapping;
 use std::result::Result;
@@ -10,12 +9,9 @@ use std::sync::atomic::Ordering;
 
 #[derive(Debug)]
 pub struct ShmWriter {
+    header: Header,
     data_ptr: *mut u8,
-    capacity: u32,
-    max_msg_len: u32,
-    tick_unit: TickUnit,
     write_offset: u32,
-    timeout: u64,
     mmap: MmapMut,
 }
 
@@ -23,27 +19,20 @@ impl ShmWriter {
     #[allow(clippy::cast_ptr_alignment)]
     pub fn new(mut mmap: MmapMut) -> Result<ShmWriter, String> {
         let buf = &mut mmap[..];
-        header::check_header(&buf)?;
+        let header = Header::read(buf)?;
         let header_ptr = buf.as_ptr() as *mut u64;
-        let capacity = header::capacity(buf);
-        let max_msg_len = header::max_msg_len(buf);
-        let timeout = header::prod_timeout(buf) * 2;
-        let tick_unit = header::tick_unit(buf);
-        let data_ptr = unsafe { header_ptr.add(header::HEADER_LEN as usize) } as *mut u8;
+        let head_len = header.len();
+        let data_ptr = unsafe { header_ptr.add(head_len) } as *mut u8;
         let mut writer = ShmWriter {
+            header,
             data_ptr,
-            capacity,
-            max_msg_len,
-            tick_unit,
             write_offset: 0,
-            timeout,
             mmap,
         };
-        info!("Kekbit writer created");
         info!(
-            "Kekbit Channel created. Size is {}MB. Max msg size {}kb",
-            capacity / 1_000_000,
-            max_msg_len / 1_000
+            "Kekbit channel writer created. Size is {}MB. Max msg size {}KB",
+            writer.header.capacity() / 1_000_000,
+            writer.header.max_msg_len() / 1_000
         );
         //sent the very first original heart bear
         match writer.heartbeat() {
@@ -60,11 +49,7 @@ impl ShmWriter {
 
     #[inline(always)]
     unsafe fn write_metadata(&mut self, write_ptr: *mut u64, len: u64, aligned_rec_len: u32) {
-        store_atomic_u64(
-            write_ptr.add(aligned_rec_len as usize),
-            WATERMARK,
-            Ordering::Release,
-        );
+        store_atomic_u64(write_ptr.add(aligned_rec_len as usize), WATERMARK, Ordering::Release);
         store_atomic_u64(write_ptr, len, Ordering::Release);
     }
 }
@@ -72,10 +57,10 @@ impl ShmWriter {
 impl Writer for ShmWriter {
     #[allow(clippy::cast_ptr_alignment)]
     fn write(&mut self, data: &[u8], len: u32) -> Result<u32, WriteError> {
-        if len > self.max_msg_len {
+        if len > self.header.max_msg_len() {
             return Err(WriteError::MaxRecordLenExceed {
                 rec_len: len,
-                max_allowed: self.max_msg_len,
+                max_allowed: self.header.max_msg_len(),
             });
         }
         let aligned_rec_len = align(len + REC_HEADER_LEN);
@@ -89,11 +74,7 @@ impl Writer for ShmWriter {
         let write_index = self.write_offset;
         unsafe {
             let write_ptr = self.data_ptr.offset(write_index as isize);
-            copy_nonoverlapping(
-                data.as_ptr(),
-                write_ptr.add(REC_HEADER_LEN as usize) as *mut u8,
-                len as usize,
-            );
+            copy_nonoverlapping(data.as_ptr(), write_ptr.add(REC_HEADER_LEN as usize) as *mut u8, len as usize);
             self.write_metadata(write_ptr as *mut u64, len as u64, aligned_rec_len >> 3);
         }
         self.write_offset += aligned_rec_len;
@@ -108,8 +89,6 @@ impl Writer for ShmWriter {
 }
 impl Drop for ShmWriter {
     fn drop(&mut self) {
-        //TODO account for the state of the file...
-        let buf = &mut self.mmap[..];
         let write_index = self.write_offset;
         info!("Closing message queue..");
         unsafe {
@@ -117,11 +96,6 @@ impl Drop for ShmWriter {
             let write_ptr = self.data_ptr.offset(write_index as isize) as *mut u64;
             store_atomic_u64(write_ptr, CLOSE, Ordering::Release);
             info!("Closing message sent")
-        }
-        if header::set_status(buf, header::Status::Closed(self.tick_unit.nix_time())).is_ok() {
-            info!("File succesfully marked as closed")
-        } else {
-            warn!("Failed to mark file as closed")
         }
         self.write_offset = self.mmap.len() as u32;
         if self.mmap.flush().is_ok() {
@@ -134,22 +108,16 @@ impl Drop for ShmWriter {
 impl ShmWriter {
     #[inline]
     pub fn available(&self) -> u32 {
-        self.capacity - self.write_offset
+        self.header.capacity() - self.write_offset
     }
-
-    #[inline]
-    pub fn capacity(&self) -> u32 {
-        self.capacity
-    }
-
     #[inline]
     pub fn write_offset(&self) -> u32 {
         self.write_offset
     }
 
     #[inline]
-    pub fn max_msg_len(&self) -> u32 {
-        self.max_msg_len
+    pub fn header(&self) -> &Header {
+        &self.header
     }
 }
 

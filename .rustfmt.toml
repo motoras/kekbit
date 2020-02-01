@@ -1,0 +1,9 @@
+# Maximum width of each line.
+# Default: 100
+max_width = 130
+
+# Number of spaces per tab.
+# Default: 4
+  # tab_spaces = 
+
+
