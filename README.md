@@ -5,7 +5,7 @@
 https://www.rust-lang.org)
 
 
-A set of mean and lean components for working with ultralight **persistent data channels** in rust. Such channels could be used for communication, transaction journaling, live mirroring of an application state or as a backend for persisting software system images.
+A set of mean lean and composable components for working with ultralight **persistent data channels** in rust. Such channels could be used for communication, transaction journaling, live mirroring of an application state or as a backend for persisting software system images.
 
 ## Basic Concepts
 
