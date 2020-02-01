@@ -1,5 +1,4 @@
 # KekbiT
-![Build](https://github.com/motoras/kekbit/workflows/Build/badge.svg?event=push)
 [![Build Status](https://travis-ci.org/motoras/kekbit.svg?branch=master)](https://travis-ci.org/motoras/kekbit)
 ![GitHub](https://img.shields.io/github/license/motoras/kekbit?style=flat-square)
 [![Rust 1.31+](https://img.shields.io/badge/rust-1.31+-informational.svg)](
