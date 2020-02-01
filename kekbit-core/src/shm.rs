@@ -40,7 +40,7 @@ pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, String
     info!("Kekbit channel store {:?} created.", kek_file);
     let mut mmap = unsafe { MmapOptions::new().map_mut(&kek_file).unwrap() };
     let buf = &mut mmap[..];
-    header.write(buf);
+    header.write_to(buf);
     mmap.flush().unwrap();
     info!("Kekbit channel with store {:?} succesfully initialized", kek_file_name);
     let res = ShmWriter::new(mmap);
@@ -62,6 +62,16 @@ mod test {
     use std::sync::Once;
 
     static INIT_LOG: Once = Once::new();
+
+    #[test]
+    fn check_max_len() {
+        let header = Header::new(100, 1000, 300_000, 1000, 99999999999, 1, Nanos);
+        dbg!(&header);
+        let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
+        let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+        let reader = shm_reader(&test_tmp_dir.path(), 100, 1000).unwrap();
+        assert_eq!(writer.header(), reader.header());
+    }
 
     #[test]
     fn read_than_write() {

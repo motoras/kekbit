@@ -10,6 +10,7 @@ pub struct Version {
 
 impl Version {
     #[inline]
+    #[allow(dead_code)]
     pub fn new(major: u16, minor: u16, patch: u32) -> Self {
         let mut v_u64 = 0u64;
         v_u64 |= u64::from(major) << 48;

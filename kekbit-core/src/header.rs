@@ -4,14 +4,15 @@ use crate::version::{Version, V_0_0_1};
 use std::cmp::max;
 use std::cmp::min;
 
-const MIN_CAPACITY: u32 = 1024;
+const MIN_CAPACITY: u32 = 2048;
 const HEADER_LEN: usize = 128;
 const MAGIC_U64: u64 = 0x2A54_4942_4B45_4B2A; //"*KEKBIT*" as bytes as u64
 const LATEST: Version = V_0_0_1;
 
 #[inline]
 const fn compute_max_msg_len(capacity: u32) -> u32 {
-    capacity >> 7
+    //if you reduce MIN_CAPACITY this may underflow!
+    (capacity >> 7) - (REC_HEADER_LEN as u32)
 }
 
 #[inline]
@@ -35,14 +36,14 @@ impl Header {
     pub fn new(
         producer_id: u64,
         channel_id: u64,
-        suggested_capacity: u32,
-        suggested_max_msg_len: u32,
+        capacity_hint: u32,
+        max_msg_len_hint: u32,
         timeout: u64,
         creation_time: u64,
         tick_unit: TickUnit,
     ) -> Header {
-        let capacity = max(MIN_CAPACITY, align(suggested_capacity));
-        let max_msg_len = align(min(suggested_max_msg_len, compute_max_msg_len(capacity)) + REC_HEADER_LEN as u32);
+        let capacity = max(MIN_CAPACITY, align(capacity_hint));
+        let max_msg_len = align(min(max_msg_len_hint + REC_HEADER_LEN, compute_max_msg_len(capacity)) as u32);
         Header {
             version: LATEST,
             producer_id,
@@ -83,12 +84,9 @@ impl Header {
         }
         offset += 4;
         let max_msg_len = Header::read_u32(header, offset);
-        let expected_msg_len = align(min(max_msg_len, compute_max_msg_len(capacity)) + REC_HEADER_LEN as u32);
-        if max_msg_len != expected_msg_len {
-            return Err(format!(
-                "Invalid max message length {}. Expected {}",
-                max_msg_len, expected_msg_len
-            ));
+        if max_msg_len > align(compute_max_msg_len(capacity)) || !is_aligned(max_msg_len) {
+            dbg!(compute_max_msg_len(capacity));
+            return Err(format!("Invalid max message length {}", max_msg_len));
         }
         offset += 4;
         let timeout = Header::read_u64(header, offset);
@@ -109,7 +107,7 @@ impl Header {
         })
     }
 
-    pub fn write(&self, header: &mut [u8]) -> usize {
+    pub fn write_to(&self, header: &mut [u8]) -> usize {
         assert!(HEADER_LEN <= header.len());
         header[0..8].clone_from_slice(&MAGIC_U64.to_le_bytes());
         let latest_v: u64 = LATEST.into();
@@ -214,7 +212,7 @@ mod tests {
             tick_unit,
         );
         let mut data = vec![0u8; HEADER_LEN];
-        assert!(head.write(&mut data) == HEADER_LEN);
+        assert!(head.write_to(&mut data) == HEADER_LEN);
         assert!(Header::read(&data).unwrap() == head);
     }
 }
