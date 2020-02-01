@@ -6,12 +6,17 @@ use std::cmp::min;
 
 const MIN_CAPACITY: u32 = 1024;
 const HEADER_LEN: usize = 128;
-pub const MAGIC_U64: u64 = 0x2A54_4942_4B45_4B2A; //"*KEKBIT*" as bytes as u64
-pub const LATEST: Version = V_0_0_1;
+const MAGIC_U64: u64 = 0x2A54_4942_4B45_4B2A; //"*KEKBIT*" as bytes as u64
+const LATEST: Version = V_0_0_1;
 
 #[inline]
 const fn compute_max_msg_len(capacity: u32) -> u32 {
     capacity >> 7
+}
+
+#[inline]
+pub fn latest_version() -> String {
+    LATEST.to_string()
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -145,13 +150,8 @@ impl Header {
     }
 
     #[inline]
-    pub fn magic() -> u64 {
-        MAGIC_U64
-    }
-
-    #[inline]
-    pub fn version(&self) -> Version {
-        self.version
+    pub fn version(&self) -> String {
+        self.version.to_string()
     }
 
     #[inline]
@@ -169,21 +169,21 @@ impl Header {
         self.capacity
     }
     #[inline]
-    pub const fn max_msg_len(&self) -> u32 {
+    pub fn max_msg_len(&self) -> u32 {
         self.max_msg_len
     }
     #[inline]
-    pub const fn timeout(&self) -> u64 {
+    pub fn timeout(&self) -> u64 {
         self.timeout
     }
 
     #[inline]
-    pub const fn creation_time(&self) -> u64 {
+    pub fn creation_time(&self) -> u64 {
         self.creation_time
     }
 
     #[inline]
-    pub const fn tick_unit(&self) -> TickUnit {
+    pub fn tick_unit(&self) -> TickUnit {
         self.tick_unit
     }
     #[inline]

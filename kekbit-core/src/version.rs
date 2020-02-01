@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter, Result};
 use std::ops::Deref;
 
-pub const V_0_0_1: Version = Version { version: 1u64 };
+pub(crate) const V_0_0_1: Version = Version { version: 1u64 };
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Debug)]
 pub struct Version {
