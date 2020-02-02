@@ -1,3 +1,4 @@
+//! Time granularity units used in kekbit.
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 

@@ -99,9 +99,8 @@ impl Reader for ShmReader {
             self.expiration = self.header.tick_unit().nix_time() + self.header.timeout();
         //start the timeout clock
         } else if self.expiration <= self.header.tick_unit().nix_time() {
-            warn!("Writer timeout detected. Channel will be abnadoned. No more reads will be performed");
+            warn!("Writer timeout detected. Channel will be abandoned. No more reads will be performed");
             return Err(ReadError::Timeout {
-                bytes_read: self.read_index - bytes_at_start,
                 timeout: self.expiration,
             });
         }
