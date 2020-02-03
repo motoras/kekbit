@@ -71,8 +71,7 @@ pub fn run_reader() -> Result<(), ()> {
         match reader.read(&mut |_| msg_count += 1, 30u16) {
             Ok(bytes_read) => total_bytes += bytes_read as u64,
             Err(read_err) => match read_err {
-                ReadError::Timeout { bytes_read, .. } => {
-                    total_bytes += bytes_read as u64;
+                ReadError::Timeout { .. } => {
                     info!("Timeout detected by reader");
                     stop = true;
                 }
