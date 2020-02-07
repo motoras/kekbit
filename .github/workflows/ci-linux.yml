@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - run: echo ${{github.ref}}
       - uses: actions/checkout@master
 
       - name: Install ${{ matrix.version }}
