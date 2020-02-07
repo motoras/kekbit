@@ -24,5 +24,5 @@ After the writer had started, in a separate console start the *reader*, from the
  cargo run --example echo_out 77 4242
  ```
 
-Be sure you use the same *writer_id* and the same *channel_id* for both programs. This example will create the file `/tmpfile/kekbit/echo_sample/{writer_id}>/>{channel_id}.kekbit` which will be used as a persistent store for the kekbit channel. To avoid unspecified behaviour before rerun the sample you should either delete the file or run the sample each time with a different channel_id. 
+Be sure you use the same *writer_id* and the same *channel_id* for both programs. This example will create the file `/tmpfile/kekbit/echo_sample/{writer_id}>/>{channel_id}.kekbit` which will be used as a persistent store for the kekbit channel. To avoid unspecified behaviour before rerun the sample you should either delete the file or run the sample each time with a different channel id. 
 
