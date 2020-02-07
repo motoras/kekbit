@@ -1,9 +1,11 @@
 # KekbiT
 [![Build Status](https://travis-ci.org/motoras/kekbit.svg?branch=master)](https://travis-ci.org/motoras/kekbit)
 [![Build](https://github.com/motoras/kekbit/workflows/Build/badge.svg)](https://github.com/motoras/kekbit/actions?query=workflow%3ABuild)
-![GitHub](https://img.shields.io/github/license/motoras/kekbit?style=flat-square)
+![Clippy](https://github.com/motoras/kekbit/workflows/Clippy/badge.svg)
 [![Rust 1.31+](https://img.shields.io/badge/rust-1.31+-informational.svg)](
 https://www.rust-lang.org)
+![GitHub](https://img.shields.io/github/license/motoras/kekbit?style=flat-square)
+
 
 
 A set of mean lean and composable components for working with ultralight **persistent data channels** in rust. Such channels could be used for communication, transaction journaling, live mirroring of an application state or as a backend for persisting software system images.
