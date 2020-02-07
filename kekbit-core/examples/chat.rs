@@ -2,7 +2,6 @@ use kekbit_core::api::{Reader, Writer};
 use kekbit_core::header::Header;
 use kekbit_core::shm::{shm_reader, shm_writer};
 use kekbit_core::tick::TickUnit;
-use std::fs::{remove_file, DirBuilder};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -16,24 +15,21 @@ fn run_writer(your_id: u64, channel_id: u64, run: Arc<AtomicBool>) {
     let header = Header::new(
         your_id,
         channel_id,
-        msg_size * 100,
+        msg_size * 1000,
         msg_size,
         FOREVER,
         TickUnit::Nanos.nix_time(),
         TickUnit::Nanos,
     );
-    let kek_file = tmp_dir.join(format!("{}.kekbit", channel_id));
-    if kek_file.exists() {
-        std::fs::remove_file(kek_file).unwrap();
-    }
     let mut writer = shm_writer(&tmp_dir, &header).unwrap();
     std::thread::sleep(Duration::from_millis(100));
     while run.load(Ordering::Relaxed) == true {
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).expect("Failed read");
-        let data = input.as_bytes();
+        let data = input.trim().as_bytes();
         writer.write(&data, data.len() as u32).unwrap();
-        if input == "Bye" {
+        if input.trim() == "Bye".to_string() {
+            println!("Sent Bye. Exiting.....");
             run.store(false, Ordering::Relaxed);
             break;
         }
@@ -55,7 +51,7 @@ fn run_reader(other_id: u64, channel_id: u64, run: Arc<AtomicBool>) {
     }
     if reader_res.is_err() {
         println!("Could not connect to chat partner");
-        return;
+        std::process::exit(-1);
     }
     let mut reader = reader_res.unwrap();
     while run.load(Ordering::Relaxed) == true {
@@ -63,8 +59,9 @@ fn run_reader(other_id: u64, channel_id: u64, run: Arc<AtomicBool>) {
         let read_res = reader.read(
             &mut |msg: &[u8]| {
                 let msg_str = std::str::from_utf8(&msg).unwrap();
-                println!("GOT {}", msg_str);
-                if msg_str == "Bye" {
+                println!("{} >{}", other_id, msg_str);
+                if msg_str == "Bye".to_string() {
+                    println!("Received Bye. Exiting.....");
                     stop = true;
                 }
             },
@@ -72,6 +69,7 @@ fn run_reader(other_id: u64, channel_id: u64, run: Arc<AtomicBool>) {
         );
         if stop {
             run.store(false, Ordering::Relaxed);
+            std::process::exit(0);
         } else {
             match read_res {
                 Ok(bytes_count) => {
@@ -82,6 +80,7 @@ fn run_reader(other_id: u64, channel_id: u64, run: Arc<AtomicBool>) {
                 Err(err) => {
                     println!("Error occured {:?} ", err);
                     run.store(false, Ordering::Relaxed);
+                    std::io::stdin()::close();
                 }
             }
         }

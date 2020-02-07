@@ -46,6 +46,13 @@ pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, String
         .or_else(|err| Err(err.to_string()))?;
     info!("Kekbit lock {:?} created", lock_file_name);
     let kek_file_name = dir_path.join(format!("{}.kekbit", header.channel_id()));
+    if kek_file_name.exists() {
+        error!(
+            "Kekbit writer creation error . The channel file {:?} already exists",
+            kek_file_name
+        );
+        return Err("Channel file already exists!".to_string());
+    }
     let kek_file = OpenOptions::new()
         .write(true)
         .read(true)
