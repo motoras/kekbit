@@ -56,8 +56,7 @@ jobs:
         timeout-minutes: 40
         with:
           command: test
-          args: --all --all-features --no-fail-fast -- --nocapture
-                --skip=test_restart_sync_actor
+          args: --all --all-features --no-fail-fast -- --nocapture                
 
       - name: Generate coverage file
         if: matrix.version == 'stable' && (github.ref == 'refs/heads/master' || github.event_name == 'pull_request')
