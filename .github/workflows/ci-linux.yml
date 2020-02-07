@@ -69,7 +69,7 @@ jobs:
         uses: codecov/codecov-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          file: cobertura.xml
+          file: ./cobertura.xml
 
       - name: Clear the cargo caches
         run: |
