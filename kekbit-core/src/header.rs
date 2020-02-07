@@ -198,11 +198,11 @@ mod tests {
     fn check_header() {
         let producer_id: u64 = 111;
         let channel_id: u64 = 101;
-        let capacity: u32 = 10001;
+        let capacity: u32 = 10_001;
         let max_msg_len: u32 = 100;
-        let timeout: u64 = 10000;
+        let timeout: u64 = 10_000;
         let tick_unit = TickUnit::Nanos;
-        let creation_time: u64 = 1111111;
+        let creation_time: u64 = 1_111_111;
         let head = Header::new(
             channel_id,
             producer_id,

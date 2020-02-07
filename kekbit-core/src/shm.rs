@@ -85,11 +85,13 @@ mod test {
     use crate::utils::{align, REC_HEADER_LEN};
     use std::sync::Once;
 
+    const FOREVER: u64 = 99_999_999_999;
+
     static INIT_LOG: Once = Once::new();
 
     #[test]
     fn check_max_len() {
-        let header = Header::new(100, 1000, 300_000, 1000, 99999999999, 1, Nanos);
+        let header = Header::new(100, 1000, 300_000, 1000, FOREVER, 1, Nanos);
         dbg!(&header);
         let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
         let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
@@ -102,7 +104,7 @@ mod test {
         INIT_LOG.call_once(|| {
             simple_logger::init().unwrap();
         });
-        let header = Header::new(100, 1000, 10000, 1000, 99999999, 1000, Nanos);
+        let header = Header::new(100, 1000, 10000, 1000, FOREVER, 1000, Nanos);
         let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
         let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
         let txt = "There are 10 kinds of people: those who know binary and those who don't";
@@ -134,7 +136,7 @@ mod test {
     impl StrMsgsAppender {
         pub fn on_message(&mut self, buf: &[u8]) {
             let msg_str = std::str::from_utf8(&buf).unwrap();
-            if self.txt.len() > 0 {
+            if self.txt.is_empty() {
                 self.txt.push_str(" ");
             }
             self.txt.push_str(msg_str);
