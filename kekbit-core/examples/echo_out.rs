@@ -24,7 +24,7 @@ fn main() {
         match read_res {
             Ok(bytes_count) => {
                 if bytes_count == 0 {
-                    //just nothign better to do than sleep until a new message comes
+                    //just nothing better to do than sleep until a new message comes
                     std::thread::sleep(std::time::Duration::from_millis(200));
                 }
             }
