@@ -32,6 +32,7 @@ pub struct Header {
     version: Version,
 }
 
+#[allow(clippy::len_without_is_empty)]
 impl Header {
     pub fn new(
         producer_id: u64,
