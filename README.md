@@ -1,8 +1,7 @@
-# KekbiT
-[![Build Status](https://travis-ci.org/motoras/kekbit.svg?branch=master)](https://travis-ci.org/motoras/kekbit)
+# Kekbit
 [![Build](https://github.com/motoras/kekbit/workflows/Build/badge.svg)](https://github.com/motoras/kekbit/actions?query=workflow%3ABuild)
-[![codecov](https://codecov.io/gh/motoras/kekbit/branch/master/graph/badge.svg)](https://codecov.io/gh/motoras/kekbit)
 [![Clippy](https://github.com/motoras/kekbit/workflows/Clippy/badge.svg)](https://github.com/motoras/kekbit/actions?query=workflow%3AClippy)
+[![codecov](https://codecov.io/gh/motoras/kekbit/branch/master/graph/badge.svg)](https://codecov.io/gh/motoras/kekbit)
 [![Rust 1.31+](https://img.shields.io/badge/rust-1.31+-informational.svg)](
 https://www.rust-lang.org)
 ![GitHub](https://img.shields.io/github/license/motoras/kekbit?style=flat-square)
