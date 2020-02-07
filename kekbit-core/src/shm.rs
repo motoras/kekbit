@@ -14,9 +14,22 @@ use writer::ShmWriter;
 pub fn shm_reader(root_path: &Path, producer_id: u64, channel_id: u64) -> Result<ShmReader, String> {
     let dir_path = root_path.join(producer_id.to_string());
     let kek_file_name = dir_path.join(format!("{}.kekbit", channel_id));
-    let kek_file = OpenOptions::new().write(true).read(true).open(&kek_file_name).unwrap();
+    let kek_lock_name = dir_path.join(format!("{}.kekbit.lock", channel_id));
+    if !kek_file_name.exists() {
+        return Err(format!("{:?} does not exist.", kek_file_name));
+    }
+    if kek_lock_name.exists() {
+        return Err(format!("{:?} Is not ready yet", kek_file_name));
+    }
+
+    let kek_file = OpenOptions::new()
+        .write(true)
+        .read(true)
+        .open(&kek_file_name)
+        .or_else(|err| Err(err.to_string()))?;
+
     info!("Kekbit file {:?} opened for read.", kek_file);
-    let mmap = unsafe { MmapOptions::new().map_mut(&kek_file).unwrap() };
+    let mmap = unsafe { MmapOptions::new().map_mut(&kek_file) }.or_else(|err| Err(err.to_string()))?;
     ShmReader::new(mmap)
 }
 
@@ -24,24 +37,35 @@ pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, String
     let dir_path = root_path.join(header.producer_id().to_string());
     let mut builder = DirBuilder::new();
     builder.recursive(true);
-    builder.create(&dir_path).unwrap();
+    builder.create(&dir_path).or_else(|err| Err(err.to_string()))?;
     let lock_file_name = dir_path.join(format!("{}.kekbit.lock", header.channel_id()));
-    OpenOptions::new().write(true).create(true).open(&lock_file_name).unwrap();
+    OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(&lock_file_name)
+        .or_else(|err| Err(err.to_string()))?;
     info!("Kekbit lock {:?} created", lock_file_name);
     let kek_file_name = dir_path.join(format!("{}.kekbit", header.channel_id()));
+    if kek_file_name.exists() {
+        error!(
+            "Kekbit writer creation error . The channel file {:?} already exists",
+            kek_file_name
+        );
+        return Err("Channel file already exists!".to_string());
+    }
     let kek_file = OpenOptions::new()
         .write(true)
         .read(true)
         .create(true)
         .open(&kek_file_name)
-        .unwrap();
+        .or_else(|err| Err(err.to_string()))?;
     let total_len = (header.capacity() + header.len() as u32) as u64;
-    kek_file.set_len(total_len).unwrap();
+    kek_file.set_len(total_len).or_else(|err| Err(err.to_string()))?;
     info!("Kekbit channel store {:?} created.", kek_file);
-    let mut mmap = unsafe { MmapOptions::new().map_mut(&kek_file).unwrap() };
+    let mut mmap = unsafe { MmapOptions::new().map_mut(&kek_file) }.or_else(|err| Err(err.to_string()))?;
     let buf = &mut mmap[..];
     header.write_to(buf);
-    mmap.flush().unwrap();
+    mmap.flush().or_else(|err| Err(err.to_string()))?;
     info!("Kekbit channel with store {:?} succesfully initialized", kek_file_name);
     let res = ShmWriter::new(mmap);
     if res.is_err() {
