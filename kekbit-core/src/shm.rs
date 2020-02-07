@@ -136,7 +136,7 @@ mod test {
     impl StrMsgsAppender {
         pub fn on_message(&mut self, buf: &[u8]) {
             let msg_str = std::str::from_utf8(&buf).unwrap();
-            if self.txt.is_empty() {
+            if !self.txt.is_empty() {
                 self.txt.push_str(" ");
             }
             self.txt.push_str(msg_str);
