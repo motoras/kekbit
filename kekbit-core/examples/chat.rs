@@ -80,7 +80,7 @@ fn run_reader(other_id: u64, channel_id: u64, run: Arc<AtomicBool>) {
                 Err(err) => {
                     println!("Error occured {:?} ", err);
                     run.store(false, Ordering::Relaxed);
-                    std::io::stdin()::close();
+                    std::process::exit(0);
                 }
             }
         }
