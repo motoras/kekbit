@@ -20,7 +20,7 @@ pub enum TickUnit {
 impl TickUnit {
     ///Returns the unique u8 id assigned to every TickUnit. This id it's used for serialization it would never change.
     ///
-    /// #Examples
+    /// # Examples
     /// ```
     /// use kekbit_core::tick::TickUnit::*;
     ///

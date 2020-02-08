@@ -28,7 +28,7 @@ static HEARTBEAT_MSG: &[u8] = &[];
 pub trait Writer {
     /// Writes a given record to a kekbit channel.
     ///
-    /// Returns the amount of bytes read from the channel
+    /// Returns the total amount of bytes wrote into the channel or a `WriteError` if the write operation fails.
     ///
     /// # Arguments
     ///
@@ -48,6 +48,8 @@ pub trait Writer {
     /// Heartbeat shall be done regulary, at a time interval which ensures that at least one heartbeat
     /// is sent between any two 'timeout' long intervals.
     ///
+    /// Returns the total amount of bytes wrote into the channel or a `WriteError` if the write operation fails.
+    ///
     /// # Errors
     ///
     /// If this function encounts any error, than an error variant will be returned. However
@@ -58,10 +60,10 @@ pub trait Writer {
         self.write(HEARTBEAT_MSG, 0)
     }
 
-    /// Flushes the stream which possibly backs the kekbit writer
+    /// Flushes the stream which possibly backs the kekbit writer.
     /// By default this method does nothing, and should be implemented only for `Writer`s which
     /// are backed by a file or a network stream.
-    /// Returns the success of the oepration
+    /// Returns the success of the operation
     fn flush(&mut self) -> Result<(), std::io::Error> {
         Ok(())
     }
@@ -85,8 +87,8 @@ pub enum ReadError {
         ///The amount of bytes read *before* the channel close mark was reached.
         bytes_read: u32,
     },
-    ///End of Channel reached. There si no more space availble in this channel.
-    EndOfChannel {
+    ///Channel full. There si no more space available in this channel.
+    ChannelFull {
         ///The amount of bytes read *before* the end of channel was reached.
         bytes_read: u32,
     },
@@ -98,7 +100,7 @@ impl ReadError {
         match self {
             ReadError::Timeout { .. } => 0,
             ReadError::Closed { bytes_read } => *bytes_read,
-            ReadError::EndOfChannel { bytes_read } => *bytes_read,
+            ReadError::ChannelFull { bytes_read } => *bytes_read,
             ReadError::Failed { bytes_read } => *bytes_read,
         }
     }

@@ -80,7 +80,7 @@ pub fn run_reader() -> Result<(), ()> {
                     info!("Closed channel detected by reader");
                     stop = true;
                 }
-                ReadError::EndOfChannel { bytes_read } | ReadError::Failed { bytes_read } => {
+                ReadError::ChannelFull { bytes_read } | ReadError::Failed { bytes_read } => {
                     total_bytes += bytes_read as u64;
                     error!(
                         "Read failed. Will stop. So far we read {} bytes in {} messages",
