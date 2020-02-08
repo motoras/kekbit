@@ -28,7 +28,7 @@ static HEARTBEAT_MSG: &[u8] = &[];
 pub trait Writer {
     /// Writes a given record to a kekbit channel.
     ///
-    /// Returns the amount of bytes read from the channel
+    /// Returns the total amount of bytes wrote into the channel or a `WriteError` if the write operation fails.
     ///
     /// # Arguments
     ///
@@ -47,6 +47,8 @@ pub trait Writer {
     /// the data published on the channel.
     /// Heartbeat shall be done regulary, at a time interval which ensures that at least one heartbeat
     /// is sent between any two 'timeout' long intervals.
+    ///
+    /// Returns the total amount of bytes wrote into the channel or a `WriteError` if the write operation fails.
     ///
     /// # Errors
     ///
