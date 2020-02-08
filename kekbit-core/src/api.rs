@@ -87,7 +87,7 @@ pub enum ReadError {
         ///The amount of bytes read *before* the channel close mark was reached.
         bytes_read: u32,
     },
-    ///End of Channel reached. There si no more space availble in this channel.
+    ///End of Channel reached. There si no more space available in this channel.
     EndOfChannel {
         ///The amount of bytes read *before* the end of channel was reached.
         bytes_read: u32,

@@ -1,4 +1,4 @@
-//! Defines operations to create  readers and writers backed by a memory mapped channel
+//! Defines operations to create readers and writers backed by a memory mapped channel.
 pub mod reader;
 use reader::ShmReader;
 pub mod writer;
@@ -29,17 +29,17 @@ use writer::ShmWriter;
 /// # Examples
 ///
 /// ```
-/// use kekbit_core::tick::TickUnit::Nanos;
+/// # use kekbit_core::tick::TickUnit::Nanos;
+/// # use kekbit_core::header::Header;
 /// use kekbit_core::shm::*;
-/// use kekbit_core::header::Header;
-///
-/// const FOREVER: u64 = 99_999_999_999;
-///
-///let header = Header::new(100, 1000, 300_000, 1000, FOREVER, 1, Nanos);
-///let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-///let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
-///let reader = shm_reader(&test_tmp_dir.path(), 100, 1000).unwrap();
-///assert_eq!(writer.header(), reader.header());
+/// # const FOREVER: u64 = 99_999_999_999;
+/// let writer_id = 1850;
+/// let channel_id = 42;
+/// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, 1, Nanos);
+/// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
+/// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+/// let reader = shm_reader(&test_tmp_dir.path(), writer_id, channel_id).unwrap();
+/// println!("{:?}", reader.header());
 ///
 /// ```
 pub fn shm_reader(root_path: &Path, writer_id: u64, channel_id: u64) -> Result<ShmReader, String> {
@@ -84,12 +84,15 @@ pub fn shm_reader(root_path: &Path, writer_id: u64, channel_id: u64) -> Result<S
 /// use kekbit_core::header::Header;
 /// use kekbit_core::api::Writer;
 ///
-///const FOREVER: u64 = 99_999_999_999;
-///
-///let header = Header::new(100, 1000, 300_000, 1000, FOREVER, 1, Nanos);
-///let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-///let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
-///writer.heartbeat().unwrap();
+/// const FOREVER: u64 = 99_999_999_999;
+/// let writer_id = 1850;
+/// let channel_id = 42;
+/// let capacity = 3000;
+/// let max_msg_len = 100;
+/// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos.nix_time(), Nanos);
+/// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
+/// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+/// writer.heartbeat().unwrap();
 /// ```
 pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, String> {
     let dir_path = root_path.join(header.producer_id().to_string());
@@ -177,12 +180,14 @@ mod test {
             msg_count += 1;
         }
         let mut reader = shm_reader(&test_tmp_dir.path(), 100, 1000).unwrap();
+        assert_eq!(reader.total_read(), 0);
         let mut res_msg = StrMsgsAppender::default();
         let bytes_read = reader
             .read(&mut |msg| res_msg.on_message(msg), msg_count + 10 as u16)
             .unwrap();
         assert_eq!(res_msg.txt, txt);
         assert_eq!(bytes_written, bytes_read);
+        assert_eq!(reader.total_read(), bytes_read);
     }
 
     #[derive(Default, Debug)]

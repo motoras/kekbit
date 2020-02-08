@@ -17,7 +17,7 @@ pub struct ShmWriter {
 
 impl ShmWriter {
     #[allow(clippy::cast_ptr_alignment)]
-    pub fn new(mut mmap: MmapMut) -> Result<ShmWriter, String> {
+    pub(super) fn new(mut mmap: MmapMut) -> Result<ShmWriter, String> {
         let buf = &mut mmap[..];
         let header = Header::read(buf)?;
         let header_ptr = buf.as_ptr() as *mut u64;
