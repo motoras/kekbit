@@ -108,7 +108,7 @@ impl Reader for ShmReader {
         while msg_read < message_count {
             let crt_index = self.read_index as usize;
             if crt_index + U64_SIZE >= self.header.capacity() as usize {
-                return Err(ReadError::EndOfChannel {
+                return Err(ReadError::ChannelFull {
                     bytes_read: self.read_index - bytes_at_start,
                 });
             }
@@ -116,7 +116,7 @@ impl Reader for ShmReader {
             if rec_len <= self.header.max_msg_len() as u64 {
                 let rec_size = align(REC_HEADER_LEN + rec_len as u32);
                 if crt_index + rec_size as usize >= self.header.capacity() as usize {
-                    return Err(ReadError::EndOfChannel {
+                    return Err(ReadError::ChannelFull {
                         bytes_read: self.read_index - bytes_at_start,
                     });
                 }

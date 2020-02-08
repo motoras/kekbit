@@ -87,8 +87,8 @@ pub enum ReadError {
         ///The amount of bytes read *before* the channel close mark was reached.
         bytes_read: u32,
     },
-    ///End of Channel reached. There si no more space available in this channel.
-    EndOfChannel {
+    ///Channel full. There si no more space available in this channel.
+    ChannelFull {
         ///The amount of bytes read *before* the end of channel was reached.
         bytes_read: u32,
     },
@@ -100,7 +100,7 @@ impl ReadError {
         match self {
             ReadError::Timeout { .. } => 0,
             ReadError::Closed { bytes_read } => *bytes_read,
-            ReadError::EndOfChannel { bytes_read } => *bytes_read,
+            ReadError::ChannelFull { bytes_read } => *bytes_read,
             ReadError::Failed { bytes_read } => *bytes_read,
         }
     }
