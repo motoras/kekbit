@@ -12,8 +12,8 @@ fn main() {
     let channel_id = args[1];
     let tmp_dir = std::env::temp_dir().join("kekbit").join("echo_sample");
     let mut reader = shm_reader(&tmp_dir, writer_id, channel_id).unwrap();
-    loop {
-        let mut do_break = false;
+    let mut stop = false;
+    while !stop {
         let read_res = reader.read(
             &mut |msg: &[u8]| {
                 let msg_str = std::str::from_utf8(&msg).unwrap();
@@ -30,11 +30,8 @@ fn main() {
             }
             Err(err) => {
                 println!("Error occured {:?}. Will stop ", err);
-                do_break = true;
+                stop = true;
             }
-        }
-        if do_break {
-            break;
         }
     }
 }
