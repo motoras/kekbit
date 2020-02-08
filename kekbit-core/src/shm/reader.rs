@@ -28,6 +28,7 @@ const END_OF_TIME: u64 = std::u64::MAX; //this should be good for any time unit 
 /// println!("{:?}", reader.header());
 ///
 /// ```
+#[derive(Debug)]
 pub struct ShmReader {
     header: Header,
     data_ptr: *mut u8,
@@ -81,7 +82,7 @@ impl Reader for ShmReader {
     /// * `message_count` - The `maximum` number of messages to be read on this call.
     ///
     /// # Errors
-    /// Various [errors](enum.ReadError.html) may occurred if a `writer` timeout is detected, end of channel is reached, channel is closed or channel data is corrupted.
+    /// Various [errors](enum.ReadError.html) may occurr such: a `writer` timeout is detected, end of channel is reached, channel is closed or channel data is corrupted.
     /// However even in such situations, some valid records *may* have been processed.
     ///
     /// # Examples

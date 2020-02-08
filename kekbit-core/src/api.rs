@@ -60,10 +60,10 @@ pub trait Writer {
         self.write(HEARTBEAT_MSG, 0)
     }
 
-    /// Flushes the stream which possibly backs the kekbit writer
+    /// Flushes the stream which possibly backs the kekbit writer.
     /// By default this method does nothing, and should be implemented only for `Writer`s which
     /// are backed by a file or a network stream.
-    /// Returns the success of the oepration
+    /// Returns the success of the operation
     fn flush(&mut self) -> Result<(), std::io::Error> {
         Ok(())
     }
