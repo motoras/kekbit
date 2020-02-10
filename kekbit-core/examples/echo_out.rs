@@ -7,11 +7,10 @@ use kekbit_core::shm::shm_reader;
 
 fn main() {
     let args: Vec<u64> = std::env::args().skip(1).map(|id| id.parse().unwrap()).collect();
-    assert!(args.len() == 2);
-    let writer_id = args[0];
-    let channel_id = args[1];
+    assert!(args.len() == 1);
+    let channel_id = args[0];
     let tmp_dir = std::env::temp_dir().join("kekbit").join("echo_sample");
-    let mut reader = shm_reader(&tmp_dir, writer_id, channel_id).unwrap();
+    let mut reader = shm_reader(&tmp_dir, channel_id).unwrap();
     let mut stop = false;
     while !stop {
         let read_res = reader.read(

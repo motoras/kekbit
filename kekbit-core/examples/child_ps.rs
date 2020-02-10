@@ -1,6 +1,6 @@
 use kekbit_core::api::{ReadError, Reader, Writer};
 use kekbit_core::header::Header;
-use kekbit_core::shm::{shm_reader, shm_writer};
+use kekbit_core::shm::{path_to_file, path_to_lock, shm_reader, shm_writer};
 use kekbit_core::tick::TickUnit;
 use std::process::exit;
 
@@ -55,7 +55,7 @@ pub fn run_writer() -> Result<(), ()> {
 
 pub fn run_reader() -> Result<(), ()> {
     info!("Creating reader porcess ...{}", getpid());
-    let mut reader = shm_reader(&Path::new(Q_PATH), 100, 1000).unwrap();
+    let mut reader = shm_reader(&Path::new(Q_PATH), 1000).unwrap();
     let mut total_bytes = 0u64;
     let mut stop = false;
     let mut msg_count = 0;
@@ -91,8 +91,6 @@ pub fn run_reader() -> Result<(), ()> {
 fn main() {
     simple_logger::init().unwrap();
     info!("Kekbit Driver PID is {}.", getpid());
-    let shm_file_path = Path::new(Q_PATH).join(100.to_string()).join(format!("{}.kekbit", 1000));
-    let shm_lock_path = Path::new(Q_PATH).join(100.to_string()).join(format!("{}.kekbit.lock", 1000));
     let w_pid = match fork() {
         Ok(ForkResult::Child) => {
             exit(match run_writer() {
@@ -110,7 +108,9 @@ fn main() {
             panic!("[main] writer fork() failed: {}", err);
         }
     };
+    let shm_file_path = path_to_file(1000, &Path::new(Q_PATH));
     while !shm_file_path.exists() {}
+    let shm_lock_path = path_to_lock(1000, &Path::new(Q_PATH));
     while shm_lock_path.exists() {}
     info!("Created ??? {}", shm_file_path.exists());
     let mut rpids = Vec::new();

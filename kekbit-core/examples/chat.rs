@@ -31,10 +31,10 @@ fn run_writer(your_id: u64, channel_id: u64, run: Arc<AtomicBool>) {
 fn run_reader(other_id: u64, channel_id: u64, run: Arc<AtomicBool>) {
     let tmp_dir = std::env::temp_dir().join("kekchat");
     let mut tries = 5;
-    let mut reader_res = shm_reader(&tmp_dir, other_id, channel_id);
+    let mut reader_res = shm_reader(&tmp_dir, channel_id);
     std::thread::sleep(Duration::from_millis(1000));
     while tries > 0 && reader_res.is_err() {
-        reader_res = shm_reader(&tmp_dir, other_id, channel_id);
+        reader_res = shm_reader(&tmp_dir, channel_id);
         if reader_res.is_ok() {
             break;
         }

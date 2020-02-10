@@ -39,14 +39,15 @@ use writer::ShmWriter;
 /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
 /// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
-/// let reader = shm_reader(&test_tmp_dir.path(), writer_id, channel_id).unwrap();
+/// let reader = shm_reader(&test_tmp_dir.path(), channel_id).unwrap();
 /// println!("{:?}", reader.header());
 ///
 /// ```
-pub fn shm_reader(root_path: &Path, writer_id: u64, channel_id: u64) -> Result<ShmReader, ChannelError> {
-    let dir_path = root_path.join(writer_id.to_string());
-    let kek_file_name = dir_path.join(format!("{}.kekbit", channel_id));
-    let kek_lock_name = dir_path.join(format!("{}.kekbit.lock", channel_id));
+pub fn shm_reader(root_path: &Path, channel_id: u64) -> Result<ShmReader, ChannelError> {
+    let path_comp = path_for(channel_id);
+    let dir_path = root_path.join(path_comp.0);
+    let kek_file_name = dir_path.join(format!("{}.kekbit", path_comp.1));
+    let kek_lock_name = dir_path.join(format!("{}.kekbit.lock", path_comp.1));
     if !kek_file_name.exists() {
         return Err(StorageNotFound {
             file_name: kek_file_name.to_str().unwrap().to_string(),
@@ -105,7 +106,8 @@ pub fn shm_reader(root_path: &Path, writer_id: u64, channel_id: u64) -> Result<S
 /// writer.heartbeat().unwrap();
 /// ```
 pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, ChannelError> {
-    let dir_path = root_path.join(header.writer_id().to_string());
+    let path_comp = path_for(header.channel_id());
+    let dir_path = root_path.join(path_comp.0);
     let mut builder = DirBuilder::new();
     builder.recursive(true);
     builder.create(&dir_path).or_else(|err| {
@@ -113,7 +115,7 @@ pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, Channe
             file_name: err.to_string(),
         })
     })?;
-    let lock_file_name = dir_path.join(format!("{}.kekbit.lock", header.channel_id()));
+    let lock_file_name = dir_path.join(format!("{}.kekbit.lock", path_comp.1));
     OpenOptions::new()
         .write(true)
         .create(true)
@@ -124,7 +126,7 @@ pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, Channe
             })
         })?;
     info!("Kekbit lock {:?} created", lock_file_name);
-    let kek_file_name = dir_path.join(format!("{}.kekbit", header.channel_id()));
+    let kek_file_name = dir_path.join(format!("{}.kekbit", path_comp.1));
     if kek_file_name.exists() {
         return Err(StorageAlreadyExists {
             file_name: kek_file_name.to_str().unwrap().to_string(),
@@ -163,6 +165,29 @@ pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, Channe
     res
 }
 
+#[inline]
+fn path_for(channel_id: u64) -> (String, String) {
+    let high_val: u32 = (channel_id >> 32) as u32;
+    let low_val = (channel_id & 0x0000_0000_FFFF_FFFF) as u32;
+    let channel_folder = format!("{:04x}_{:04x}", high_val >> 16, high_val & 0x0000_FFFF);
+    let channel_file = format!("{:04x}_{:04x}", low_val >> 16, low_val & 0x0000_FFFF);
+    (channel_folder, channel_file)
+}
+
+#[inline]
+pub fn path_to_file(channel_id: u64, root_path: &Path) -> Box<Path> {
+    let path_comp = path_for(channel_id);
+    let dir_path = root_path.join(path_comp.0);
+    dir_path.join(format!("{}.kekbit", path_comp.1)).into_boxed_path()
+}
+
+#[inline]
+pub fn path_to_lock(channel_id: u64, root_path: &Path) -> Box<Path> {
+    let path_comp = path_for(channel_id);
+    let dir_path = root_path.join(path_comp.0);
+    dir_path.join(format!("{}.kekbit.lock", path_comp.1)).into_boxed_path()
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -180,7 +205,7 @@ mod test {
         let header = Header::new(100, 1000, 300_000, 1000, FOREVER, Nanos);
         let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
         let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
-        let reader = shm_reader(&test_tmp_dir.path(), 100, 1000).unwrap();
+        let reader = shm_reader(&test_tmp_dir.path(), 1000).unwrap();
         assert_eq!(writer.header(), reader.header());
     }
 
@@ -206,7 +231,7 @@ mod test {
         }
         assert_eq!(writer.write_offset(), bytes_written);
         writer.flush().unwrap(); //not really necessary
-        let mut reader = shm_reader(&test_tmp_dir.path(), 100, 1000).unwrap();
+        let mut reader = shm_reader(&test_tmp_dir.path(), 1000).unwrap();
         assert_eq!(reader.total_read(), 0);
         let mut res_msg = StrMsgsAppender::default();
         let bytes_read = reader
@@ -230,5 +255,28 @@ mod test {
             }
             self.txt.push_str(msg_str);
         }
+    }
+
+    #[test]
+    fn check_path_for_channel() {
+        let channel_id_0: u64 = 0;
+        let p0 = path_for(channel_id_0);
+        assert_eq!(p0.0, "0000_0000");
+        assert_eq!(p0.1, "0000_0000");
+
+        let channel_id_1: u64 = 0xAAAA_BBBB_CCCC_DDDD;
+        let p1 = path_for(channel_id_1);
+        assert_eq!(p1.0, "aaaa_bbbb");
+        assert_eq!(p1.1, "cccc_dddd");
+
+        let channel_id_2: u64 = 0xBBBB_CCCC_0001;
+        let p2 = path_for(channel_id_2);
+        assert_eq!(p2.0, "0000_bbbb");
+        assert_eq!(p2.1, "cccc_0001");
+
+        let channel_id_3: u64 = 0xAAAA_00BB_000C_0DDD;
+        let p3 = path_for(channel_id_3);
+        assert_eq!(p3.0, "aaaa_00bb");
+        assert_eq!(p3.1, "000c_0ddd");
     }
 }

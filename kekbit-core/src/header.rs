@@ -76,7 +76,6 @@ impl Header {
         let max_msg_len = align(min(max_msg_len_hint + REC_HEADER_LEN, compute_max_msg_len(capacity)) as u32);
         let creation_time = tick_unit.nix_time();
         Header {
-            version: Version::latest(),
             writer_id,
             channel_id,
             capacity,
@@ -84,6 +83,7 @@ impl Header {
             timeout,
             creation_time,
             tick_unit,
+            version: Version::latest(),
         }
     }
     ///Reads and `validates` the metadata from an existing memory mapped channel.
@@ -110,13 +110,13 @@ impl Header {
     /// use kekbit_core::shm::*;
     /// # const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
-    /// let channel_id = 42;
+    /// let channel_id = 4242;
     /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
     /// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
     ///
-    /// let dir_path = test_tmp_dir.path().join(writer_id.to_string());
-    /// let kek_file_name = dir_path.join(format!("{}.kekbit", channel_id));
+    /// let dir_path = test_tmp_dir.path().join("0000_0000");
+    /// let kek_file_name = dir_path.join("0000_1092.kekbit");
     /// let kek_file = OpenOptions::new()
     ///  .write(true)
     ///  .read(true)
