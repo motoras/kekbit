@@ -18,6 +18,7 @@ A set of mean, lean and composable components for working with ultralight **pers
 * They have a fixed predefined capacity which cannot be changed. 
 * Once a channel is closed, full, or abandoned it will never be used again for writing.
 * They are backed by a file; using a filesystem with RAM for the backing store such as tempfs or /dev/shm could provide blazing fast speeds
+* They always use little endian byte order
 
 #### Writers and Readers
 * Writers are components which push data into a persistent channel. For each channel there is only one writer.
