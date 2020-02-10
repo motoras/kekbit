@@ -16,15 +16,7 @@ fn main() {
     let channel_id = args[1];
     let tmp_dir = std::env::temp_dir().join("kekbit").join("echo_sample");
     let max_msg_size = 1024;
-    let header = Header::new(
-        writer_id,
-        channel_id,
-        max_msg_size * 1000,
-        max_msg_size,
-        timeout_secs,
-        Secs.nix_time(),
-        Secs,
-    );
+    let header = Header::new(writer_id, channel_id, max_msg_size * 1000, max_msg_size, timeout_secs, Secs);
     let mut writer = shm_writer(&tmp_dir, &header).unwrap();
     let mut last_msg_time = Secs.nix_time();
     loop {

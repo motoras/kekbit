@@ -53,7 +53,7 @@ pub trait Writer {
     /// # Errors
     ///
     /// If this function encounts any error, than an error variant will be returned. However
-    /// in this case the erros are not recovarable they signal tha the channel is at the
+    /// in this case the erros are not recovarable they signal that the channel is at the
     /// end of its lifetime.
     #[inline(always)]
     fn heartbeat(&mut self) -> Result<u32, WriteError> {

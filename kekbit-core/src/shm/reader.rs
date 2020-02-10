@@ -21,7 +21,7 @@ const END_OF_TIME: u64 = std::u64::MAX; //this should be good for any time unit 
 /// # const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
 /// let channel_id = 42;
-/// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, 1, Nanos);
+/// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
 /// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
 /// let reader = shm_reader(&test_tmp_dir.path(), writer_id, channel_id).unwrap();
@@ -95,7 +95,7 @@ impl Reader for ShmReader {
     /// # const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
     /// let channel_id = 42;
-    /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, 1, Nanos);
+    /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
     /// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
     /// let mut reader = shm_reader(&test_tmp_dir.path(), writer_id, channel_id).unwrap();
