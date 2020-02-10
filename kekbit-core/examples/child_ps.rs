@@ -80,6 +80,7 @@ pub fn run_reader() -> Result<(), ()> {
                     );
                     panic!("Read failed!!!!");
                 }
+                _ => panic!("Unknown read error"),
             },
         }
     }

@@ -1,12 +1,14 @@
+use crate::api::ChannelError;
+use crate::api::ChannelError::{IncompatibleVersion, InvalidCapacity, InvalidMaxMessageLength, InvalidSignature};
 use crate::tick::TickUnit;
 use crate::utils::{align, is_aligned, REC_HEADER_LEN};
 use crate::version::Version;
 use std::cmp::max;
 use std::cmp::min;
 
-const MIN_CAPACITY: u32 = 2048;
+const MIN_CAPACITY: u32 = 1024 * 10;
 const HEADER_LEN: usize = 128;
-const MAGIC_U64: u64 = 0x2A54_4942_4B45_4B2A; //"*KEKBIT*" as bytes as u64
+const SIGNATURE: u64 = 0x2A54_4942_4B45_4B2A; //"*KEKBIT*" as bytes as u64
 
 #[inline]
 const fn compute_max_msg_len(capacity: u32) -> u32 {
@@ -125,21 +127,24 @@ impl Header {
     ///  println!("{:?}", &header);
     ///  ```
     ///    
-    pub fn read(header: &[u8]) -> Result<Header, String> {
+    pub fn read(header: &[u8]) -> Result<Header, ChannelError> {
         assert!(header.len() >= HEADER_LEN);
         let mut offset = 0;
-        let magic = Header::read_u64(header, offset);
-        if magic != MAGIC_U64 {
-            return Err(format!("Invalid magic header {:X}. Expected {:X}", magic, MAGIC_U64));
+        let signature = Header::read_u64(header, offset);
+        if signature != SIGNATURE {
+            return Err(InvalidSignature {
+                expected: SIGNATURE,
+                actual: signature,
+            });
         }
         offset += 8;
         let version: Version = Header::read_u64(header, 8).into();
         let latest = Version::latest();
         if !latest.is_compatible(version) {
-            return Err(format!(
-                "Invalid file version {}. Expected something compatible with {}",
-                version, latest
-            ));
+            return Err(IncompatibleVersion {
+                expected: latest.into(),
+                actual: version.into(),
+            });
         }
         offset += 8;
         let writer_id = Header::read_u64(header, offset);
@@ -147,16 +152,31 @@ impl Header {
         let channel_id = Header::read_u64(header, offset);
         offset += 8;
         let capacity = Header::read_u32(header, offset);
-        if capacity < MIN_CAPACITY || !is_aligned(MIN_CAPACITY) {
-            return Err(format!(
-                "Invalid store capacity {}. Expected something align and not smaller than {}",
-                capacity, MIN_CAPACITY
-            ));
+        if capacity < MIN_CAPACITY {
+            return Err(InvalidCapacity {
+                capacity,
+                msg: "Capacity below minimum allowed of 10KB",
+            });
+        }
+        if !is_aligned(MIN_CAPACITY) {
+            return Err(InvalidCapacity {
+                capacity,
+                msg: "Capacity is not 8 bytes aligned",
+            });
         }
         offset += 4;
         let max_msg_len = Header::read_u32(header, offset);
-        if max_msg_len > align(compute_max_msg_len(capacity)) || !is_aligned(max_msg_len) {
-            return Err(format!("Invalid max message length {}", max_msg_len));
+        if max_msg_len > align(compute_max_msg_len(capacity)) {
+            return Err(InvalidMaxMessageLength {
+                msg_len: max_msg_len,
+                msg: "Max message lenght is too large",
+            });
+        }
+        if !is_aligned(max_msg_len) {
+            return Err(InvalidMaxMessageLength {
+                msg_len: max_msg_len,
+                msg: "Max message length is not 8 bytes aligned",
+            });
         }
         offset += 4;
         let timeout = Header::read_u64(header, offset);
@@ -224,7 +244,7 @@ impl Header {
     #[inline]
     pub fn write_to(&self, header: &mut [u8]) -> usize {
         assert!(self.len() <= header.len());
-        header[0..8].clone_from_slice(&MAGIC_U64.to_le_bytes());
+        header[0..8].clone_from_slice(&SIGNATURE.to_le_bytes());
         let latest_v: u64 = Version::latest().into();
         header[8..16].clone_from_slice(&latest_v.to_le_bytes());
         header[16..24].clone_from_slice(&self.writer_id.to_le_bytes());

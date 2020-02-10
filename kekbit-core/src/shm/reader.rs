@@ -1,4 +1,4 @@
-use crate::api::{ReadError, Reader};
+use crate::api::{ChannelError, ReadError, Reader};
 use crate::header::Header;
 use crate::utils::{align, load_atomic_u64, CLOSE, REC_HEADER_LEN, U64_SIZE, WATERMARK};
 use log::{error, info, warn};
@@ -39,7 +39,7 @@ pub struct ShmReader {
 
 impl ShmReader {
     #[allow(clippy::cast_ptr_alignment)]
-    pub(super) fn new(mut mmap: MmapMut) -> Result<ShmReader, String> {
+    pub(super) fn new(mut mmap: MmapMut) -> Result<ShmReader, ChannelError> {
         let buf = &mut mmap[..];
         let header = Header::read(buf)?;
         let header_ptr = buf.as_ptr() as *mut u64;
@@ -82,7 +82,7 @@ impl Reader for ShmReader {
     /// * `message_count` - The `maximum` number of messages to be read on this call.
     ///
     /// # Errors
-    /// Various [errors](enum.ReadError.html) may occurr such: a `writer` timeout is detected, end of channel is reached, channel is closed or channel data is corrupted.
+    /// Various [errors](enum.ReadError.html) may occur such: a `writer` timeout is detected, end of channel is reached, channel is closed or channel data is corrupted.
     /// However even in such situations, some valid records *may* have been processed.
     ///
     /// # Examples
