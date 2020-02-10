@@ -35,7 +35,7 @@ use writer::ShmWriter;
 /// # const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
 /// let channel_id = 42;
-/// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, 1, Nanos);
+/// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
 /// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
 /// let reader = shm_reader(&test_tmp_dir.path(), writer_id, channel_id).unwrap();
@@ -89,13 +89,13 @@ pub fn shm_reader(root_path: &Path, writer_id: u64, channel_id: u64) -> Result<S
 /// let channel_id = 42;
 /// let capacity = 3000;
 /// let max_msg_len = 100;
-/// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos.nix_time(), Nanos);
+/// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
 /// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
 /// writer.heartbeat().unwrap();
 /// ```
 pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, String> {
-    let dir_path = root_path.join(header.producer_id().to_string());
+    let dir_path = root_path.join(header.writer_id().to_string());
     let mut builder = DirBuilder::new();
     builder.recursive(true);
     builder.create(&dir_path).or_else(|err| Err(err.to_string()))?;
@@ -153,7 +153,7 @@ mod test {
 
     #[test]
     fn check_max_len() {
-        let header = Header::new(100, 1000, 300_000, 1000, FOREVER, 1, Nanos);
+        let header = Header::new(100, 1000, 300_000, 1000, FOREVER, Nanos);
         let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
         let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
         let reader = shm_reader(&test_tmp_dir.path(), 100, 1000).unwrap();
@@ -165,7 +165,7 @@ mod test {
         INIT_LOG.call_once(|| {
             simple_logger::init().unwrap();
         });
-        let header = Header::new(100, 1000, 10000, 1000, FOREVER, 1000, Nanos);
+        let header = Header::new(100, 1000, 10000, 1000, FOREVER, Nanos);
         let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
         let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
         let txt = "There are 10 kinds of people: those who know binary and those who don't";
@@ -180,6 +180,8 @@ mod test {
             bytes_written += size;
             msg_count += 1;
         }
+        assert_eq!(writer.write_offset(), bytes_written);
+        writer.flush().unwrap(); //not really necessary
         let mut reader = shm_reader(&test_tmp_dir.path(), 100, 1000).unwrap();
         assert_eq!(reader.total_read(), 0);
         let mut res_msg = StrMsgsAppender::default();

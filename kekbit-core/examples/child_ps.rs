@@ -17,15 +17,7 @@ const Q_PATH: &str = "/dev/shm";
 pub fn run_writer() -> Result<(), ()> {
     info!("Creating writer process ...{}", getpid());
     let chunk_size = 100;
-    let header = Header::new(
-        100,
-        1000,
-        chunk_size * (ITERATIONS + 100),
-        1000,
-        99999999999,
-        1,
-        TickUnit::Nanos,
-    );
+    let header = Header::new(100, 1000, chunk_size * (ITERATIONS + 100), 1000, 99999999999, TickUnit::Nanos);
     let mut writer = shm_writer(&Path::new(Q_PATH), &header).unwrap();
     let msg_bytes = "There are 10 kinds of people: those who know binary and those who don't".as_bytes();
     // let msgs: Vec<&str> = "There are 10 kinds of people: those who know binary and those who don't"
