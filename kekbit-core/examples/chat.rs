@@ -12,15 +12,7 @@ const FOREVER: u64 = 999_999_999_999;
 fn run_writer(your_id: u64, channel_id: u64, run: Arc<AtomicBool>) {
     let tmp_dir = std::env::temp_dir().join("kekchat");
     let msg_size = 1000;
-    let header = Header::new(
-        your_id,
-        channel_id,
-        msg_size * 1000,
-        msg_size,
-        FOREVER,
-        TickUnit::Nanos.nix_time(),
-        TickUnit::Nanos,
-    );
+    let header = Header::new(your_id, channel_id, msg_size * 1000, msg_size, FOREVER, TickUnit::Nanos);
     let mut writer = shm_writer(&tmp_dir, &header).unwrap();
     std::thread::sleep(Duration::from_millis(100));
     while run.load(Ordering::Relaxed) == true {

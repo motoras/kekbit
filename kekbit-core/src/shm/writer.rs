@@ -24,7 +24,7 @@ use std::sync::atomic::Ordering;
 /// let channel_id = 42;
 /// let capacity = 3000;
 /// let max_msg_len = 100;
-/// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos.nix_time(), Nanos);
+/// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
 /// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
 /// writer.heartbeat().unwrap();
@@ -109,7 +109,7 @@ impl Writer for ShmWriter {
     /// let channel_id = 42;
     /// let capacity = 30_000;
     /// let max_msg_len = 100;
-    /// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos.nix_time(), Nanos);
+    /// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
     /// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
     /// let msg = "There are 10 kinds of people: those who know binary and those who don't";
@@ -166,7 +166,7 @@ impl Writer for ShmWriter {
     /// let channel_id = 42;
     /// let capacity = 30_000;
     /// let max_msg_len = 100;
-    /// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos.nix_time(), Nanos);
+    /// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
     /// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
     /// let msg = "There are 10 kinds of people: those who know binary and those who don't";
