@@ -1,4 +1,5 @@
-use crate::api::{WriteError, Writer};
+use crate::api::ChannelError::AccessError;
+use crate::api::{ChannelError, WriteError, Writer};
 use crate::header::Header;
 use crate::utils::{align, store_atomic_u64, CLOSE, REC_HEADER_LEN, WATERMARK};
 use log::{debug, error, info};
@@ -39,7 +40,7 @@ pub struct ShmWriter {
 
 impl ShmWriter {
     #[allow(clippy::cast_ptr_alignment)]
-    pub(super) fn new(mut mmap: MmapMut) -> Result<ShmWriter, String> {
+    pub(super) fn new(mut mmap: MmapMut) -> Result<ShmWriter, ChannelError> {
         let buf = &mut mmap[..];
         let header = Header::read(buf)?;
         let header_ptr = buf.as_ptr() as *mut u64;
@@ -59,13 +60,12 @@ impl ShmWriter {
         //sent the very first original heart bear
         match writer.heartbeat() {
             Ok(_) => {
-                info!("Initial hearbeat succesfully sent!");
+                info!("Initial hearbeat successfully sent!");
                 Ok(writer)
             }
-            Err(we) => {
-                error!("Initial heartbeat failed!. Reason {:?}", we);
-                Err(format!("{:?}", we))
-            }
+            Err(we) => Err(AccessError {
+                reason: format!("Initial heartbeat failed!. Reason {:?}", we),
+            }),
         }
     }
 
