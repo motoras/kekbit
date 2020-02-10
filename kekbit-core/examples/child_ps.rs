@@ -1,6 +1,6 @@
 use kekbit_core::api::{ReadError, Reader, Writer};
 use kekbit_core::header::Header;
-use kekbit_core::shm::{path_to_file, path_to_lock, shm_reader, shm_writer};
+use kekbit_core::shm::{shm_reader, shm_writer, storage_path};
 use kekbit_core::tick::TickUnit;
 use std::process::exit;
 
@@ -108,9 +108,9 @@ fn main() {
             panic!("[main] writer fork() failed: {}", err);
         }
     };
-    let shm_file_path = path_to_file(1000, &Path::new(Q_PATH));
+    let shm_file_path = storage_path(&Path::new(Q_PATH), 1000);
     while !shm_file_path.exists() {}
-    let shm_lock_path = path_to_lock(1000, &Path::new(Q_PATH));
+    let shm_lock_path = shm_file_path.with_extension("lock");
     while shm_lock_path.exists() {}
     info!("Created ??? {}", shm_file_path.exists());
     let mut rpids = Vec::new();

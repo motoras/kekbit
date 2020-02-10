@@ -44,25 +44,23 @@ use writer::ShmWriter;
 ///
 /// ```
 pub fn shm_reader(root_path: &Path, channel_id: u64) -> Result<ShmReader, ChannelError> {
-    let path_comp = path_for(channel_id);
-    let dir_path = root_path.join(path_comp.0);
-    let kek_file_name = dir_path.join(format!("{}.kekbit", path_comp.1));
-    let kek_lock_name = dir_path.join(format!("{}.kekbit.lock", path_comp.1));
-    if !kek_file_name.exists() {
+    let kek_file_path = storage_path(root_path, channel_id).into_path_buf();
+    let kek_lock_path = kek_file_path.with_extension("lock");
+    if !kek_file_path.exists() {
         return Err(StorageNotFound {
-            file_name: kek_file_name.to_str().unwrap().to_string(),
+            file_name: kek_file_path.to_str().unwrap().to_string(),
         });
     }
-    if kek_lock_name.exists() {
+    if kek_lock_path.exists() {
         return Err(StorageNotReady {
-            file_name: kek_file_name.to_str().unwrap().to_string(),
+            file_name: kek_file_path.to_str().unwrap().to_string(),
         });
     }
 
     let kek_file = OpenOptions::new()
         .write(true)
         .read(true)
-        .open(&kek_file_name)
+        .open(&kek_file_path)
         .or_else(|err| {
             Err(CouldNotAccessStorage {
                 file_name: err.to_string(),
@@ -106,37 +104,35 @@ pub fn shm_reader(root_path: &Path, channel_id: u64) -> Result<ShmReader, Channe
 /// writer.heartbeat().unwrap();
 /// ```
 pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, ChannelError> {
-    let path_comp = path_for(header.channel_id());
-    let dir_path = root_path.join(path_comp.0);
+    let kek_file_path = storage_path(root_path, header.channel_id()).into_path_buf();
+    if kek_file_path.exists() {
+        return Err(StorageAlreadyExists {
+            file_name: kek_file_path.to_str().unwrap().to_string(),
+        });
+    }
     let mut builder = DirBuilder::new();
     builder.recursive(true);
-    builder.create(&dir_path).or_else(|err| {
+    builder.create(&kek_file_path.parent().unwrap()).or_else(|err| {
         Err(CouldNotAccessStorage {
             file_name: err.to_string(),
         })
     })?;
-    let lock_file_name = dir_path.join(format!("{}.kekbit.lock", path_comp.1));
+    let kek_lock_path = kek_file_path.with_extension("lock");
     OpenOptions::new()
         .write(true)
         .create(true)
-        .open(&lock_file_name)
+        .open(&kek_lock_path)
         .or_else(|err| {
             Err(CouldNotAccessStorage {
                 file_name: err.to_string(),
             })
         })?;
-    info!("Kekbit lock {:?} created", lock_file_name);
-    let kek_file_name = dir_path.join(format!("{}.kekbit", path_comp.1));
-    if kek_file_name.exists() {
-        return Err(StorageAlreadyExists {
-            file_name: kek_file_name.to_str().unwrap().to_string(),
-        });
-    }
+    info!("Kekbit lock {:?} created", kek_lock_path);
     let kek_file = OpenOptions::new()
         .write(true)
         .read(true)
         .create(true)
-        .open(&kek_file_name)
+        .open(&kek_file_path)
         .or_else(|err| {
             Err(CouldNotAccessStorage {
                 file_name: err.to_string(),
@@ -154,38 +150,33 @@ pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, Channe
     let buf = &mut mmap[..];
     header.write_to(buf);
     mmap.flush().or_else(|err| Err(AccessError { reason: err.to_string() }))?;
-    info!("Kekbit channel with store {:?} succesfully initialized", kek_file_name);
+    info!("Kekbit channel with store {:?} succesfully initialized", kek_file_path);
     let res = ShmWriter::new(mmap);
     if res.is_err() {
-        error!("Kekbit writer creation error . The file {:?} will be removed!", kek_file_name);
-        remove_file(&kek_file_name).expect("Could not remove kekbit file");
+        error!("Kekbit writer creation error . The file {:?} will be removed!", kek_file_path);
+        remove_file(&kek_file_path).expect("Could not remove kekbit file");
     }
-    remove_file(&lock_file_name).expect("Could not remove kekbit lock file");
-    info!("Kekbit lock file {:?} removed", lock_file_name);
+    remove_file(&kek_lock_path).expect("Could not remove kekbit lock file");
+    info!("Kekbit lock file {:?} removed", kek_lock_path);
     res
 }
 
 #[inline]
-fn path_for(channel_id: u64) -> (String, String) {
+/// Returns the path to the file associated with a channel inside a kekbit root folder.
+///
+/// # Arguments
+///
+///  * `root_path` - Path to the kekbit root folder, a folder where channels are stored. Multiple such
+///   folders may exist in a system.  
+///  * `channel_id` - Channel for which the file path will be returned
+///
+pub fn storage_path(root_path: &Path, channel_id: u64) -> Box<Path> {
     let high_val: u32 = (channel_id >> 32) as u32;
     let low_val = (channel_id & 0x0000_0000_FFFF_FFFF) as u32;
     let channel_folder = format!("{:04x}_{:04x}", high_val >> 16, high_val & 0x0000_FFFF);
     let channel_file = format!("{:04x}_{:04x}", low_val >> 16, low_val & 0x0000_FFFF);
-    (channel_folder, channel_file)
-}
-
-#[inline]
-pub fn path_to_file(channel_id: u64, root_path: &Path) -> Box<Path> {
-    let path_comp = path_for(channel_id);
-    let dir_path = root_path.join(path_comp.0);
-    dir_path.join(format!("{}.kekbit", path_comp.1)).into_boxed_path()
-}
-
-#[inline]
-pub fn path_to_lock(channel_id: u64, root_path: &Path) -> Box<Path> {
-    let path_comp = path_for(channel_id);
-    let dir_path = root_path.join(path_comp.0);
-    dir_path.join(format!("{}.kekbit.lock", path_comp.1)).into_boxed_path()
+    let dir_path = root_path.join(channel_folder).join(channel_file);
+    dir_path.with_extension("kekbit").into_boxed_path()
 }
 
 #[cfg(test)]
@@ -258,25 +249,37 @@ mod test {
     }
 
     #[test]
-    fn check_path_for_channel() {
+    fn check_path_to_storage() {
+        let dir = tempdir::TempDir::new("kektest").unwrap();
+        let root_path = dir.path();
         let channel_id_0: u64 = 0;
-        let p0 = path_for(channel_id_0);
-        assert_eq!(p0.0, "0000_0000");
-        assert_eq!(p0.1, "0000_0000");
+        let path = storage_path(root_path, channel_id_0).into_path_buf();
+        assert_eq!(path, root_path.join("0000_0000").join("0000_0000.kekbit"));
+        assert_eq!(
+            path.with_extension("lock"),
+            root_path.join("0000_0000").join("0000_0000.lock")
+        );
 
         let channel_id_1: u64 = 0xAAAA_BBBB_CCCC_DDDD;
-        let p1 = path_for(channel_id_1);
-        assert_eq!(p1.0, "aaaa_bbbb");
-        assert_eq!(p1.1, "cccc_dddd");
-
+        let path = storage_path(root_path, channel_id_1).into_path_buf();
+        assert_eq!(path, root_path.join("aaaa_bbbb").join("cccc_dddd.kekbit"));
+        assert_eq!(
+            path.with_extension("lock"),
+            root_path.join("aaaa_bbbb").join("cccc_dddd.lock")
+        );
         let channel_id_2: u64 = 0xBBBB_CCCC_0001;
-        let p2 = path_for(channel_id_2);
-        assert_eq!(p2.0, "0000_bbbb");
-        assert_eq!(p2.1, "cccc_0001");
-
+        let path = storage_path(root_path, channel_id_2).into_path_buf();
+        assert_eq!(path, root_path.join("0000_bbbb").join("cccc_0001.kekbit"));
+        assert_eq!(
+            path.with_extension("lock"),
+            root_path.join("0000_bbbb").join("cccc_0001.lock")
+        );
         let channel_id_3: u64 = 0xAAAA_00BB_000C_0DDD;
-        let p3 = path_for(channel_id_3);
-        assert_eq!(p3.0, "aaaa_00bb");
-        assert_eq!(p3.1, "000c_0ddd");
+        let path = storage_path(root_path, channel_id_3).into_path_buf();
+        assert_eq!(path, root_path.join("aaaa_00bb").join("000c_0ddd.kekbit"));
+        assert_eq!(
+            path.with_extension("lock"),
+            root_path.join("aaaa_00bb").join("000c_0ddd.lock")
+        );
     }
 }

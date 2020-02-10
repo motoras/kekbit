@@ -113,10 +113,10 @@ impl Header {
     /// let channel_id = 4242;
     /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-    /// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+    /// let dir_path = test_tmp_dir.path();
+    ///  # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
     ///
-    /// let dir_path = test_tmp_dir.path().join("0000_0000");
-    /// let kek_file_name = dir_path.join("0000_1092.kekbit");
+    /// let kek_file_name = storage_path(dir_path, channel_id);
     /// let kek_file = OpenOptions::new()
     ///  .write(true)
     ///  .read(true)
@@ -346,7 +346,7 @@ mod tests {
         let max_msg_len: u32 = 100;
         let timeout: u64 = 10_000;
         let tick_unit = TickUnit::Nanos;
-        let head = Header::new(channel_id, producer_id, capacity, max_msg_len, timeout, tick_unit);
+        let head = Header::new(producer_id, channel_id, capacity, max_msg_len, timeout, tick_unit);
         let mut data = vec![0u8; HEADER_LEN];
         assert!(head.write_to(&mut data) == HEADER_LEN);
         assert!(Header::read(&data).unwrap() == head);
@@ -355,5 +355,6 @@ mod tests {
         assert_eq!(head.version(), Version::latest().to_string());
         assert!(head.creation_time() < tick_unit.nix_time());
         assert_eq!(head.len(), 128);
+        assert_eq!(head.writer_id(), producer_id);
     }
 }
