@@ -1,8 +1,8 @@
-//! A basic kekbit channel writer. Creates  a channel and writes to it whatever it gets from
-//! the console. The maximum message size is 1024, the channel size is bound to 1000 such messages.
-//! The channel will timeout after 30 seconds of inactivity.
-//! Start it with the following command echo_in <writer_id> <channel_id>
-
+//! Request/Reply IPC sample. This component will read requests from a channel,
+//! than send replies on a separate channel. The requests is expected to be three u64 values:
+//! a request id, and 2 values which the replier will add them up. The reply will be two
+//! u64 values: the id of the request and the sum of the two values from request.
+//! In order to start the replier type cargo run --example rep <reply_channel_id> <request_channel_id>
 use crossbeam::utils::Backoff;
 use kekbit_core::api::Reader;
 use kekbit_core::api::Writer;
@@ -43,7 +43,9 @@ fn main() {
         timeout_secs,
         Secs,
     );
+    //creates the channel where the replies will be sent together with the associated writer
     let mut writer = shm_writer(&tmp_dir, &header).unwrap();
+    //tries to connect to the channel where the requests are pushed
     let mut tries = 1;
     let mut reader_rep = shm_reader(&tmp_dir, req_channel_id);
     while reader_rep.is_err() && tries <= 100 {
@@ -57,9 +59,11 @@ fn main() {
     }
     let backoff = Backoff::new();
     let mut reader = reader_rep.unwrap();
+    //tries to read the requests
     loop {
         let read_res = reader.read(
             &mut |bytes_msg| {
+                //extracts the request info
                 let id = read_u64(&bytes_msg, 0);
                 println!("Got request {} ", id);
                 let first = read_u64(&bytes_msg, 8);
@@ -77,6 +81,8 @@ fn main() {
         match read_res {
             Ok(_) => backoff.snooze(),
             Err(err) => {
+                //If any error is returned we gave up.
+                //Errors include timeout or reaching the 'Close' marker
                 println!("No more requests to read. {:?}", err);
                 break;
             }
