@@ -1,3 +1,4 @@
+//!Handles metadata associated with a channel.
 use crate::api::ChannelError;
 use crate::api::ChannelError::{IncompatibleVersion, InvalidCapacity, InvalidMaxMessageLength, InvalidSignature};
 use crate::tick::TickUnit;

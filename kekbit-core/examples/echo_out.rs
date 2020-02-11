@@ -1,7 +1,6 @@
 //! A basic kekbit channel reader. Reads from a kekbit channel and prints on the screen.
 //! Will stop if is timing out or if a 'Bye' message is received.
 //! Start it with the following command echo_out <writer_id> <channel_id>
-
 use kekbit_core::api::Reader;
 use kekbit_core::shm::shm_reader;
 

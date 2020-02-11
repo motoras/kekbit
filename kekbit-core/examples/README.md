@@ -9,11 +9,11 @@ This sample illustrates the basic channel operations. A [Writer](https://github.
  The *Bye* message will stop both the reader and the writer. The channel has a limit of 1000 messages of 1024 bytes each and a timeout of 30 seconds. 
  
 In order to start the *writer*, in the kekbit_core folder type:
- ```cargo run --example echo_in <writer_id>  <channel_id>```
+ ```cargo run --example echo_in <channel_id>```
  
  E.g:
  ```
- cargo run --example echo_in 77 4242
+ cargo run --example echo_in 4242
  ```
  
 After the writer had started, in a separate console start the *reader*, from the same kekbit_core folder:
