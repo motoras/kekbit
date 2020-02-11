@@ -1,4 +1,7 @@
 # Kekbit
+[![Cargo](https://img.shields.io/crates/v/kekbit.svg)](
+https://crates.io/crates/kekbit)
+[![Documentation](https://docs.rs/kekbit/badge.svg)](https://docs.rs/kekbit)
 [![Build](https://github.com/motoras/kekbit/workflows/Build/badge.svg)](https://github.com/motoras/kekbit/actions?query=workflow%3ABuild)
 [![Clippy](https://github.com/motoras/kekbit/workflows/Clippy/badge.svg)](https://github.com/motoras/kekbit/actions?query=workflow%3AClippy)
 [![codecov](https://codecov.io/gh/motoras/kekbit/branch/master/graph/badge.svg)](https://codecov.io/gh/motoras/kekbit)
