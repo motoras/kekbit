@@ -30,7 +30,7 @@ A set of mean, lean and composable components for working with ultralight **pers
 
 ## Components
 The main kekbit crate just re-exports components from its subcrates:
-* [`kekbit-core`](kekbit-core)  defines the [`Writer`] and [`Reader`] traits together with the [`ShmWriter`] and [`ShmReader`] implementations which provide write and read operations for memory mapped channels.
+* [`kekbit-core`](kekbit-core)  defines the [`Writer`](https://docs.rs/kekbit/*/kekbit/core/trait.Writer.html) and [`Reader`](https://docs.rs/kekbit/*/kekbit/core/trait.Reader.html) traits together with the [`ShmWriter`](https://docs.rs/kekbit/*/kekbit/core/struct.ShmWriter.html) and [`ShmReader`](https://docs.rs/kekbit/*/kekbit/core/struct.ShmReader.html) implementations which provide write and read operations for memory mapped channels.
  
 
 ## Usage
