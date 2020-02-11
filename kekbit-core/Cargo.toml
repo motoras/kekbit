@@ -9,7 +9,6 @@ homepage = "https://github.com/motoras/kekbit"
 documentation="https://docs.rs/kekbit-core/0.1.0/kekbit_core/"
 repository="https://github.com/motoras/kekbit/tree/master/kekbit-core"
 keywords = ["lock-free", "data-channel", "persitent-queue", "request-reply"]
-categories = ["middleware", "ipc"]
 
 [dependencies]
 memmap = "0.7.0"
