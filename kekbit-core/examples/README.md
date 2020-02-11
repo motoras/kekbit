@@ -24,4 +24,4 @@ After the writer had started, in a separate console start the *reader*, from the
  cargo run --example echo_out 4242
  ```
 
-Be sure you use the same the same *channel_id* for both programs. This example will create channels under `/{tmpf}/kekbit/echo_sample/` folder. Particulary for a channel with the id 4242 in linux, the file `/tmp/kekbit/echo_sample/0000_0000/0000_1092.kekbit` will be created and used as a persistent store for the kekbit channel. To avoid unspecified behaviour before reruning the sample, you should either delete the file or run the sample with a different channel id.
+Be sure you use the same the same *channel_id* for both programs. This example will create channels under `/{tmpf}/kekbit/echo_sample/` folder. Particulary for a channel with the id 4242 in linux, the file `/tmp/kekbit/echo_sample/0000_0000/0000_1092.kekbit` will be created and used as a persistent storage. To avoid unspecified behaviour before reruning the sample, you should either delete the file or run the sample with a different channel id.
