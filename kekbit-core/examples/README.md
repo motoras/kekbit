@@ -32,15 +32,13 @@ This sample illustrates a simple request/reply IPC model using kekbit channels. 
 
 In order to run the sample, start the requester and the repliers in separate consoles with the following commands:
 
-     For the requester: ```cargo run --example req <request_channel_id> <reply_channel_id>```
+     For the requester: cargo run --example req <request_channel_id> <reply_channel_id>
 
-     E.g.
-        ```cargo run --example req 88 99```
+     E.g.: cargo run --example req 88 99
 
-     For the replier: ```cargo run --example rep <reply_channel_id> <request_channel_id>```
+     For the replier: cargo run --example rep <reply_channel_id> <request_channel_id>
 
-     E.g.
-        ```cargo run --example rep 99 88```   
+     E.g.: cargo run --example rep 99 88
 
 
 To avoid unspecified behaviour before reruning the sample, you should either delete the files associated with these channels(e.g ```rm -rf /tmp/kekbit/req_rep```) or simply use different channel ids.
