@@ -8,7 +8,9 @@ This crate can be use directly by adding this to your `Cargo.toml`:
 ```toml
 [dependencies]
 kekbit_core = "0.1.0"
-``` but a better approach will be to use this crate indirectly by adding a dependency to the main kekbit crate.
+```
+
+A better approach will be to use this crate indirectly by adding a dependency to the main kekbit crate.
 
 ## Compatibility
 
