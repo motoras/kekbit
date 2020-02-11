@@ -5,6 +5,11 @@ authors = ["motoras <motoras@gmail.com>"]
 edition = "2018"
 license = "MIT"
 description = "Defines the main abstractions and provides the core components required to work with kekbit channels"
+homepage = "https://github.com/motoras/kekbit"
+documentation="https://docs.rs/kekbit-core/0.1.0/kekbit_core/"
+repository="https://github.com/motoras/kekbit/tree/master/kekbit-core"
+keywords = ["lock-free", "data-channel", "persitent-queue", "request-reply"]
+categories = ["middleware", "ipc"]
 
 [dependencies]
 memmap = "0.7.0"

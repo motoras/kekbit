@@ -5,6 +5,12 @@ authors = ["motoras <motoras@gmail.com>"]
 edition = "2018"
 license = "MIT"
 description = "Ultralight persistent data channels"
+homepage = "https://github.com/motoras/kekbit"
+#documentation="https://docs.rs/kekbit/0.1.0/kekbit/"
+repository="https://github.com/motoras/kekbit/tree/master/src"
+keywords = ["lock-free", "data-channel", "state-replication", "transactions-journal","application-state-replay", "persitent-queue","request-reply"]
+categories = ["middleware", "ipc", "system-prevalence"]
+
 
 [workspace]
 members = [
