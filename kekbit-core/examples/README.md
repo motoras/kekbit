@@ -31,6 +31,7 @@ Be sure you use the same the same *channel_id* for both programs. This example w
 This sample illustrates a simple request/reply IPC model using kekbit channels. The [Requester](https://github.com/motoras/kekbit/blob/master/kekbit-core/examples/req.rs) creates a channel(the *requests channel*), writes requests to it than reads the replies from another channel(the *replies channel*). The [Replier](https://github.com/motoras/kekbit/blob/master/kekbit-core/examples/rep.rs) creates a channel for the replies(the *replies channel*), reads the requests from the *requests channel*, process them, and writes the replies back on the *replies channel*.
 
 In order to run the sample, start the requester and the repliers in separate consoles with the following commands:
+
      For the requester: ```cargo run --example req <request_channel_id> <reply_channel_id>```
 
      E.g.
@@ -42,4 +43,4 @@ In order to run the sample, start the requester and the repliers in separate con
         ```cargo run --example rep 99 88```   
 
 
-o avoid unspecified behaviour before reruning the sample, you should either delete the files associated with these channels(e.g ```rm -rf /tmp/kekbit/req_rep```) or simply use different channel ids.
+To avoid unspecified behaviour before reruning the sample, you should either delete the files associated with these channels(e.g ```rm -rf /tmp/kekbit/req_rep```) or simply use different channel ids.
