@@ -24,7 +24,7 @@ const END_OF_TIME: u64 = std::u64::MAX; //this should be good for any time unit 
 /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
 /// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
-/// let reader = shm_reader(&test_tmp_dir.path(), writer_id, channel_id).unwrap();
+/// let reader = shm_reader(&test_tmp_dir.path(), channel_id).unwrap();
 /// println!("{:?}", reader.header());
 ///
 /// ```
@@ -98,7 +98,7 @@ impl Reader for ShmReader {
     /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
     /// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
-    /// let mut reader = shm_reader(&test_tmp_dir.path(), writer_id, channel_id).unwrap();
+    /// let mut reader = shm_reader(&test_tmp_dir.path(), channel_id).unwrap();
     /// reader.read(&mut |buf| println!("{}",std::str::from_utf8(buf).unwrap()), 10).unwrap();  
     ///
     /// ```

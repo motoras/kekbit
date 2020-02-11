@@ -39,29 +39,28 @@ use writer::ShmWriter;
 /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
 /// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
-/// let reader = shm_reader(&test_tmp_dir.path(), writer_id, channel_id).unwrap();
+/// let reader = shm_reader(&test_tmp_dir.path(), channel_id).unwrap();
 /// println!("{:?}", reader.header());
 ///
 /// ```
-pub fn shm_reader(root_path: &Path, writer_id: u64, channel_id: u64) -> Result<ShmReader, ChannelError> {
-    let dir_path = root_path.join(writer_id.to_string());
-    let kek_file_name = dir_path.join(format!("{}.kekbit", channel_id));
-    let kek_lock_name = dir_path.join(format!("{}.kekbit.lock", channel_id));
-    if !kek_file_name.exists() {
+pub fn shm_reader(root_path: &Path, channel_id: u64) -> Result<ShmReader, ChannelError> {
+    let kek_file_path = storage_path(root_path, channel_id).into_path_buf();
+    let kek_lock_path = kek_file_path.with_extension("lock");
+    if !kek_file_path.exists() {
         return Err(StorageNotFound {
-            file_name: kek_file_name.to_str().unwrap().to_string(),
+            file_name: kek_file_path.to_str().unwrap().to_string(),
         });
     }
-    if kek_lock_name.exists() {
+    if kek_lock_path.exists() {
         return Err(StorageNotReady {
-            file_name: kek_file_name.to_str().unwrap().to_string(),
+            file_name: kek_file_path.to_str().unwrap().to_string(),
         });
     }
 
     let kek_file = OpenOptions::new()
         .write(true)
         .read(true)
-        .open(&kek_file_name)
+        .open(&kek_file_path)
         .or_else(|err| {
             Err(CouldNotAccessStorage {
                 file_name: err.to_string(),
@@ -105,36 +104,35 @@ pub fn shm_reader(root_path: &Path, writer_id: u64, channel_id: u64) -> Result<S
 /// writer.heartbeat().unwrap();
 /// ```
 pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, ChannelError> {
-    let dir_path = root_path.join(header.writer_id().to_string());
+    let kek_file_path = storage_path(root_path, header.channel_id()).into_path_buf();
+    if kek_file_path.exists() {
+        return Err(StorageAlreadyExists {
+            file_name: kek_file_path.to_str().unwrap().to_string(),
+        });
+    }
     let mut builder = DirBuilder::new();
     builder.recursive(true);
-    builder.create(&dir_path).or_else(|err| {
+    builder.create(&kek_file_path.parent().unwrap()).or_else(|err| {
         Err(CouldNotAccessStorage {
             file_name: err.to_string(),
         })
     })?;
-    let lock_file_name = dir_path.join(format!("{}.kekbit.lock", header.channel_id()));
+    let kek_lock_path = kek_file_path.with_extension("lock");
     OpenOptions::new()
         .write(true)
         .create(true)
-        .open(&lock_file_name)
+        .open(&kek_lock_path)
         .or_else(|err| {
             Err(CouldNotAccessStorage {
                 file_name: err.to_string(),
             })
         })?;
-    info!("Kekbit lock {:?} created", lock_file_name);
-    let kek_file_name = dir_path.join(format!("{}.kekbit", header.channel_id()));
-    if kek_file_name.exists() {
-        return Err(StorageAlreadyExists {
-            file_name: kek_file_name.to_str().unwrap().to_string(),
-        });
-    }
+    info!("Kekbit lock {:?} created", kek_lock_path);
     let kek_file = OpenOptions::new()
         .write(true)
         .read(true)
         .create(true)
-        .open(&kek_file_name)
+        .open(&kek_file_path)
         .or_else(|err| {
             Err(CouldNotAccessStorage {
                 file_name: err.to_string(),
@@ -152,15 +150,33 @@ pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, Channe
     let buf = &mut mmap[..];
     header.write_to(buf);
     mmap.flush().or_else(|err| Err(AccessError { reason: err.to_string() }))?;
-    info!("Kekbit channel with store {:?} succesfully initialized", kek_file_name);
+    info!("Kekbit channel with store {:?} succesfully initialized", kek_file_path);
     let res = ShmWriter::new(mmap);
     if res.is_err() {
-        error!("Kekbit writer creation error . The file {:?} will be removed!", kek_file_name);
-        remove_file(&kek_file_name).expect("Could not remove kekbit file");
+        error!("Kekbit writer creation error . The file {:?} will be removed!", kek_file_path);
+        remove_file(&kek_file_path).expect("Could not remove kekbit file");
     }
-    remove_file(&lock_file_name).expect("Could not remove kekbit lock file");
-    info!("Kekbit lock file {:?} removed", lock_file_name);
+    remove_file(&kek_lock_path).expect("Could not remove kekbit lock file");
+    info!("Kekbit lock file {:?} removed", kek_lock_path);
     res
+}
+
+#[inline]
+/// Returns the path to the file associated with a channel inside a kekbit root folder.
+///
+/// # Arguments
+///
+///  * `root_path` - Path to the kekbit root folder, a folder where channels are stored. Multiple such
+///   folders may exist in a system.  
+///  * `channel_id` - Channel for which the file path will be returned
+///
+pub fn storage_path(root_path: &Path, channel_id: u64) -> Box<Path> {
+    let high_val: u32 = (channel_id >> 32) as u32;
+    let low_val = (channel_id & 0x0000_0000_FFFF_FFFF) as u32;
+    let channel_folder = format!("{:04x}_{:04x}", high_val >> 16, high_val & 0x0000_FFFF);
+    let channel_file = format!("{:04x}_{:04x}", low_val >> 16, low_val & 0x0000_FFFF);
+    let dir_path = root_path.join(channel_folder).join(channel_file);
+    dir_path.with_extension("kekbit").into_boxed_path()
 }
 
 #[cfg(test)]
@@ -180,7 +196,7 @@ mod test {
         let header = Header::new(100, 1000, 300_000, 1000, FOREVER, Nanos);
         let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
         let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
-        let reader = shm_reader(&test_tmp_dir.path(), 100, 1000).unwrap();
+        let reader = shm_reader(&test_tmp_dir.path(), 1000).unwrap();
         assert_eq!(writer.header(), reader.header());
     }
 
@@ -206,7 +222,7 @@ mod test {
         }
         assert_eq!(writer.write_offset(), bytes_written);
         writer.flush().unwrap(); //not really necessary
-        let mut reader = shm_reader(&test_tmp_dir.path(), 100, 1000).unwrap();
+        let mut reader = shm_reader(&test_tmp_dir.path(), 1000).unwrap();
         assert_eq!(reader.total_read(), 0);
         let mut res_msg = StrMsgsAppender::default();
         let bytes_read = reader
@@ -230,5 +246,40 @@ mod test {
             }
             self.txt.push_str(msg_str);
         }
+    }
+
+    #[test]
+    fn check_path_to_storage() {
+        let dir = tempdir::TempDir::new("kektest").unwrap();
+        let root_path = dir.path();
+        let channel_id_0: u64 = 0;
+        let path = storage_path(root_path, channel_id_0).into_path_buf();
+        assert_eq!(path, root_path.join("0000_0000").join("0000_0000.kekbit"));
+        assert_eq!(
+            path.with_extension("lock"),
+            root_path.join("0000_0000").join("0000_0000.lock")
+        );
+
+        let channel_id_1: u64 = 0xAAAA_BBBB_CCCC_DDDD;
+        let path = storage_path(root_path, channel_id_1).into_path_buf();
+        assert_eq!(path, root_path.join("aaaa_bbbb").join("cccc_dddd.kekbit"));
+        assert_eq!(
+            path.with_extension("lock"),
+            root_path.join("aaaa_bbbb").join("cccc_dddd.lock")
+        );
+        let channel_id_2: u64 = 0xBBBB_CCCC_0001;
+        let path = storage_path(root_path, channel_id_2).into_path_buf();
+        assert_eq!(path, root_path.join("0000_bbbb").join("cccc_0001.kekbit"));
+        assert_eq!(
+            path.with_extension("lock"),
+            root_path.join("0000_bbbb").join("cccc_0001.lock")
+        );
+        let channel_id_3: u64 = 0xAAAA_00BB_000C_0DDD;
+        let path = storage_path(root_path, channel_id_3).into_path_buf();
+        assert_eq!(path, root_path.join("aaaa_00bb").join("000c_0ddd.kekbit"));
+        assert_eq!(
+            path.with_extension("lock"),
+            root_path.join("aaaa_00bb").join("000c_0ddd.lock")
+        );
     }
 }

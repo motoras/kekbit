@@ -1,3 +1,4 @@
+//!Handles metadata associated with a channel.
 use crate::api::ChannelError;
 use crate::api::ChannelError::{IncompatibleVersion, InvalidCapacity, InvalidMaxMessageLength, InvalidSignature};
 use crate::tick::TickUnit;
@@ -76,7 +77,6 @@ impl Header {
         let max_msg_len = align(min(max_msg_len_hint + REC_HEADER_LEN, compute_max_msg_len(capacity)) as u32);
         let creation_time = tick_unit.nix_time();
         Header {
-            version: Version::latest(),
             writer_id,
             channel_id,
             capacity,
@@ -84,6 +84,7 @@ impl Header {
             timeout,
             creation_time,
             tick_unit,
+            version: Version::latest(),
         }
     }
     ///Reads and `validates` the metadata from an existing memory mapped channel.
@@ -110,13 +111,13 @@ impl Header {
     /// use kekbit_core::shm::*;
     /// # const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
-    /// let channel_id = 42;
+    /// let channel_id = 4242;
     /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-    /// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+    /// let dir_path = test_tmp_dir.path();
+    ///  # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
     ///
-    /// let dir_path = test_tmp_dir.path().join(writer_id.to_string());
-    /// let kek_file_name = dir_path.join(format!("{}.kekbit", channel_id));
+    /// let kek_file_name = storage_path(dir_path, channel_id);
     /// let kek_file = OpenOptions::new()
     ///  .write(true)
     ///  .read(true)
@@ -346,7 +347,7 @@ mod tests {
         let max_msg_len: u32 = 100;
         let timeout: u64 = 10_000;
         let tick_unit = TickUnit::Nanos;
-        let head = Header::new(channel_id, producer_id, capacity, max_msg_len, timeout, tick_unit);
+        let head = Header::new(producer_id, channel_id, capacity, max_msg_len, timeout, tick_unit);
         let mut data = vec![0u8; HEADER_LEN];
         assert!(head.write_to(&mut data) == HEADER_LEN);
         assert!(Header::read(&data).unwrap() == head);
@@ -355,5 +356,6 @@ mod tests {
         assert_eq!(head.version(), Version::latest().to_string());
         assert!(head.creation_time() < tick_unit.nix_time());
         assert_eq!(head.len(), 128);
+        assert_eq!(head.writer_id(), producer_id);
     }
 }

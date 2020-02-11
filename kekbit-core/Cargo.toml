@@ -9,7 +9,9 @@ edition = "2018"
 memmap = "0.7.0"
 log = "0.4.8"
 
+
 [dev-dependencies]
 tempdir = "0.3.7"
 simple_logger ="1.5.0"
-nix="0.16.1"
+nix="0.17.0"
+crossbeam ="0.7.3"

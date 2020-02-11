@@ -2,7 +2,6 @@
 
 ///Channel Access errors
 #[derive(Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[non_exhaustive]
 pub enum ChannelError {
     ///The channel has an invalid signature. The channel signature must be `0x2A54_4942_4B45_4B2A`
     InvalidSignature {
@@ -65,7 +64,6 @@ pub enum ChannelError {
 
 ///Write operation errors
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[non_exhaustive]
 pub enum WriteError {
     /// There is not enough space available in the channel for such an operation.
     NoSpaceAvailable {
@@ -135,7 +133,6 @@ pub trait Writer {
 
 ///Read operation errors
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[non_exhaustive]
 pub enum ReadError {
     ///Read operation had unexpectedly failed. Usually will happen when a channel was corrupted.
     Failed {
