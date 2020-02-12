@@ -2,9 +2,9 @@
 [![Cargo](https://img.shields.io/crates/v/kekbit.svg?color=blue)](
 https://crates.io/crates/kekbit)
 [![Documentation](https://docs.rs/kekbit/badge.svg)](https://docs.rs/kekbit)
-[![Rust 1.31+](https://img.shields.io/badge/rust-1.31+-informational.svg)](
+[![Rust 1.31+](https://img.shields.io/badge/rust-1.31+-important.svg)](
 https://www.rust-lang.org)
-![GitHub](https://img.shields.io/github/license/motoras/kekbit?color=informational)
+![GitHub](https://img.shields.io/github/license/motoras/kekbit?color=important)
 [![Build](https://github.com/motoras/kekbit/workflows/Build/badge.svg)](https://github.com/motoras/kekbit/actions?query=workflow%3ABuild)
 [![Clippy](https://github.com/motoras/kekbit/workflows/Clippy/badge.svg)](https://github.com/motoras/kekbit/actions?query=workflow%3AClippy)
 [![codecov](https://codecov.io/gh/motoras/kekbit/branch/master/graph/badge.svg)](https://codecov.io/gh/motoras/kekbit)
