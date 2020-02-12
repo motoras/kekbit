@@ -6,8 +6,8 @@ use crossbeam::utils::Backoff;
 use kekbit_core::api::Reader;
 use kekbit_core::api::Writer;
 use kekbit_core::header::Header;
-use kekbit_core::shm::shm_reader;
 use kekbit_core::shm::shm_writer;
+use kekbit_core::shm::try_shm_reader;
 use kekbit_core::tick::TickUnit::Secs;
 use std::collections::HashSet;
 
@@ -38,14 +38,8 @@ fn main() {
     let header = Header::new(req_id, req_channel_id, max_msg_size * 1000, max_msg_size, timeout_secs, Secs);
     //creates the channel where the requests will be sent together with the associated writer
     let mut writer = shm_writer(&tmp_dir, &header).unwrap();
-    let mut tries = 1;
     //tries to connect to the channel from where the replies will be read
-    let mut reader_rep = shm_reader(&tmp_dir, reply_channel_id);
-    while reader_rep.is_err() && tries <= 100 {
-        tries += 1;
-        reader_rep = shm_reader(&tmp_dir, reply_channel_id);
-        std::thread::sleep(std::time::Duration::from_millis(300));
-    }
+    let reader_rep = try_shm_reader(&tmp_dir, reply_channel_id, 5000, 15);
     if reader_rep.is_err() {
         println!("Could not connect to replier. Giving up..");
         std::process::exit(1);

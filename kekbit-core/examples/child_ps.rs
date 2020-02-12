@@ -1,6 +1,6 @@
 use kekbit_core::api::{ReadError, Reader, Writer};
 use kekbit_core::header::Header;
-use kekbit_core::shm::{shm_reader, shm_writer, storage_path};
+use kekbit_core::shm::{shm_writer, storage_path, try_shm_reader};
 use kekbit_core::tick::TickUnit;
 use std::process::exit;
 
@@ -55,7 +55,7 @@ pub fn run_writer() -> Result<(), ()> {
 
 pub fn run_reader() -> Result<(), ()> {
     info!("Creating reader porcess ...{}", getpid());
-    let mut reader = shm_reader(&Path::new(Q_PATH), 1000).unwrap();
+    let mut reader = try_shm_reader(&Path::new(Q_PATH), 1000, 2000, 200).unwrap();
     let mut total_bytes = 0u64;
     let mut stop = false;
     let mut msg_count = 0;
@@ -107,11 +107,6 @@ fn main() {
             panic!("[main] writer fork() failed: {}", err);
         }
     };
-    let shm_file_path = storage_path(&Path::new(Q_PATH), 1000);
-    while !shm_file_path.exists() {}
-    let shm_lock_path = shm_file_path.with_extension("lock");
-    while shm_lock_path.exists() {}
-    info!("Created ??? {}", shm_file_path.exists());
     let mut rpids = Vec::new();
     for _i in 0..1 {
         let r_pid = match fork() {
@@ -143,6 +138,7 @@ fn main() {
         Ok(status) => info!("[main] Writer completed with status {:?}", status),
         Err(err) => panic!("[main] waitpid() on writer failed: {}", err),
     }
+    let shm_file_path = storage_path(&Path::new(Q_PATH), 1000);
     if shm_file_path.exists() {
         std::fs::remove_file(&shm_file_path).unwrap();
         info!("Channel data file {:?} removed", &shm_file_path);

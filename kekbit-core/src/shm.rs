@@ -72,6 +72,60 @@ pub fn shm_reader(root_path: &Path, channel_id: u64) -> Result<ShmReader, Channe
         unsafe { MmapOptions::new().map_mut(&kek_file) }.or_else(|err| Err(MemoryMappingFailed { reason: err.to_string() }))?;
     ShmReader::new(mmap)
 }
+
+/// Tries multiple times to create a kekbit reader associated to a memory mapped channel.
+/// This function will basically call [shm_reader](fn.shm_reader.html) up to *tries* time unless
+/// it succeeds. Between two tries the function will spin/sleep for a about ```duration_millis/tries```
+/// milliseconds so potentially could be blocking.
+/// This should be the preferred method to create a *reader* when you are willing to wait until the channel is available.
+///
+///
+/// Returns a ready to use reader which points to the beginning of a kekbit channel if succeeds, or the error *returned by the last try* if it fails.
+///
+/// # Arguments
+///
+/// * `root_path` - The path to the folder where all the channels will be stored grouped by writer's id.
+/// * `writer_id` - The id of the writer which created the channel.
+/// * `channel_id` - The channel identifier.
+/// * `duration_millis` - How long it should try in milliseconds
+/// * `tries` - How many times it will try during the given time duration
+///
+/// # Errors
+///
+/// Various [errors](enum.ChannelError.html) may occur if the operation fails.
+///
+/// # Examples
+///
+/// ```
+/// # use kekbit_core::tick::TickUnit::Nanos;
+/// # use kekbit_core::header::Header;
+/// use kekbit_core::shm::*;
+/// # const FOREVER: u64 = 99_999_999_999;
+/// let writer_id = 1850;
+/// let channel_id = 42;
+/// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
+/// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
+/// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+/// let duration = 1000;
+/// let tries = 10;
+/// let reader = try_shm_reader(&test_tmp_dir.path(), channel_id, duration, tries).unwrap();
+/// println!("{:?}", reader.header());
+///
+/// ```
+pub fn try_shm_reader(root_path: &Path, channel_id: u64, duration_millis: u64, tries: u64) -> Result<ShmReader, ChannelError> {
+    assert!(tries > 0);
+    let interval = duration_millis / tries;
+    let sleep_duration = std::time::Duration::from_millis(interval);
+    let mut reader_res = shm_reader(root_path, channel_id);
+    let mut tries_left = tries - 1;
+    while reader_res.is_err() && tries_left > 0 {
+        std::thread::sleep(sleep_duration);
+        reader_res = shm_reader(root_path, channel_id);
+        tries_left -= 1;
+    }
+    reader_res
+}
+
 /// Creates a file backed memory mapped  kekbit channel and a writer associate with it.
 ///
 /// Returns a ready to use writer to the new created channel or an error if the operation fails.
@@ -185,7 +239,9 @@ mod test {
     use crate::api::{Reader, Writer};
     use crate::tick::TickUnit::Nanos;
     use crate::utils::{align, REC_HEADER_LEN};
+    use std::sync::Arc;
     use std::sync::Once;
+    use tempdir::TempDir;
 
     const FOREVER: u64 = 99_999_999_999;
 
@@ -194,7 +250,7 @@ mod test {
     #[test]
     fn check_max_len() {
         let header = Header::new(100, 1000, 300_000, 1000, FOREVER, Nanos);
-        let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
+        let test_tmp_dir = TempDir::new("kektest").unwrap();
         let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
         let reader = shm_reader(&test_tmp_dir.path(), 1000).unwrap();
         assert_eq!(writer.header(), reader.header());
@@ -206,7 +262,7 @@ mod test {
             simple_logger::init().unwrap();
         });
         let header = Header::new(100, 1000, 10000, 1000, FOREVER, Nanos);
-        let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
+        let test_tmp_dir = TempDir::new("kektest").unwrap();
         let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
         let txt = "There are 10 kinds of people: those who know binary and those who don't";
         let msgs = txt.split_whitespace();
@@ -250,7 +306,7 @@ mod test {
 
     #[test]
     fn check_path_to_storage() {
-        let dir = tempdir::TempDir::new("kektest").unwrap();
+        let dir = TempDir::new("kektest").unwrap();
         let root_path = dir.path();
         let channel_id_0: u64 = 0;
         let path = storage_path(root_path, channel_id_0).into_path_buf();
@@ -281,5 +337,24 @@ mod test {
             path.with_extension("lock"),
             root_path.join("aaaa_00bb").join("000c_0ddd.lock")
         );
+    }
+
+    #[test]
+    fn try_to_create_reader() {
+        INIT_LOG.call_once(|| {
+            simple_logger::init().unwrap();
+        });
+        let test_tmp_dir = Arc::new(TempDir::new("kektest").unwrap());
+        let never_reader = try_shm_reader(&test_tmp_dir.path(), 999_999, 300, 30);
+        assert!(never_reader.is_err());
+        let channel_id = 999;
+        let root_dir = test_tmp_dir.clone();
+        let handle = std::thread::spawn(move || {
+            let good_reader = try_shm_reader(&test_tmp_dir.path(), channel_id, 1000, 20);
+            assert!(good_reader.is_err());
+        });
+        let header = Header::new(100, 1000, 10000, 1000, FOREVER, Nanos);
+        shm_writer(&root_dir.path(), &header).unwrap();
+        handle.join().unwrap();
     }
 }

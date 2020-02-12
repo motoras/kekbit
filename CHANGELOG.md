@@ -2,7 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.0] 2020-02-11
+## [0.2.0] In Progress
+
+### Added
+- Function *try_shm_reader* a convenient method to create a reader while waiting for a channel to be available.  
+
+## [0.1.1] 2020-02-11
 
 ### Added
 
