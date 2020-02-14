@@ -4,7 +4,7 @@ https://crates.io/crates/kekbit)
 [![Documentation](https://docs.rs/kekbit/badge.svg)](https://docs.rs/kekbit)
 [![Rust 1.31+](https://img.shields.io/badge/rust-1.31+-important.svg)](
 https://www.rust-lang.org)
-![GitHub](https://img.shields.io/github/license/motoras/kekbit?color=important)
+[![GitHub](https://img.shields.io/github/license/motoras/kekbit?color=important)](https://github.com/motoras/kekbit/blob/master/LICENSE)
 [![Build](https://github.com/motoras/kekbit/workflows/Build/badge.svg)](https://github.com/motoras/kekbit/actions?query=workflow%3ABuild)
 [![Clippy](https://github.com/motoras/kekbit/workflows/Clippy/badge.svg)](https://github.com/motoras/kekbit/actions?query=workflow%3AClippy)
 [![codecov](https://codecov.io/gh/motoras/kekbit/branch/master/graph/badge.svg)](https://codecov.io/gh/motoras/kekbit)
