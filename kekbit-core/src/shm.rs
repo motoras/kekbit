@@ -236,9 +236,10 @@ pub fn storage_path(root_path: &Path, channel_id: u64) -> Box<Path> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::api::{Reader, Writer};
+    use crate::api::{InvalidPosition, Reader, Writer};
     use crate::tick::TickUnit::Nanos;
     use crate::utils::{align, REC_HEADER_LEN};
+    use assert_matches::*;
     use std::sync::Arc;
     use std::sync::Once;
     use tempdir::TempDir;
@@ -279,14 +280,14 @@ mod test {
         assert_eq!(writer.write_offset(), bytes_written);
         writer.flush().unwrap(); //not really necessary
         let mut reader = shm_reader(&test_tmp_dir.path(), 1000).unwrap();
-        assert_eq!(reader.total_read(), 0);
+        assert_eq!(reader.position(), 0);
         let mut res_msg = StrMsgsAppender::default();
         let bytes_read = reader
             .read(&mut |_pos, msg| res_msg.on_message(msg), msg_count + 10 as u16)
             .unwrap();
         assert_eq!(res_msg.txt, txt);
         assert_eq!(bytes_written, bytes_read);
-        assert_eq!(reader.total_read(), bytes_read);
+        assert_eq!(reader.position(), bytes_read);
     }
 
     #[derive(Default, Debug)]
@@ -305,7 +306,7 @@ mod test {
     }
 
     #[test]
-    fn check_read_position() {
+    fn check_position() {
         INIT_LOG.call_once(|| {
             simple_logger::init().unwrap();
         });
@@ -329,7 +330,86 @@ mod test {
             last_msg_size = reader.read(&mut |pos, _msg| assert_eq!(pos, read_bytes), 1).unwrap();
             read_bytes += last_msg_size;
         }
-        assert_eq!(reader.total_read(), writer.write_offset() - last_msg_size);
+        assert_eq!(reader.position(), writer.write_offset() - last_msg_size);
+    }
+
+    #[test]
+    fn check_move_to() {
+        INIT_LOG.call_once(|| {
+            simple_logger::init().unwrap();
+        });
+        let header = Header::new(100, 1000, 10000, 1000, FOREVER, Nanos);
+        let test_tmp_dir = TempDir::new("kektest").unwrap();
+        let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+        let txt = "There are 10 kinds of people: those who know binary and those who don't";
+        let msgs = txt.split_whitespace();
+        let mut msg_count = 0;
+        for m in msgs {
+            let to_wr = m.as_bytes();
+            let len = to_wr.len() as u32;
+            let size = writer.write(&to_wr, len).unwrap();
+            assert_eq!(size, align(len + REC_HEADER_LEN));
+            msg_count += 1;
+        }
+        let mut reader = shm_reader(&test_tmp_dir.path(), 1000).unwrap();
+        reader.move_to(8).unwrap(); //skip  heartbeat
+        let mut msg_read = 0;
+        let mut last_pos = 0;
+        for _i in 0..msg_count {
+            //let's read every message twice...
+            reader
+                .read(
+                    &mut |pos, _| {
+                        msg_read += 1;
+                        last_pos = pos
+                    },
+                    1,
+                )
+                .unwrap();
+            reader.move_to(last_pos).unwrap();
+            reader.read(&mut |_, _| msg_read += 1, 1).unwrap();
+        }
+        assert_eq!(msg_read, 2 * msg_count);
+        reader.move_to(8).unwrap(); //now let's read them again
+        for _i in 0..msg_count {
+            reader
+                .read(
+                    &mut |_, _| {
+                        msg_read += 1;
+                    },
+                    1,
+                )
+                .unwrap();
+        }
+        assert_eq!(msg_read, 3 * msg_count);
+    }
+
+    #[test]
+    fn check_invalid_move_to() {
+        INIT_LOG.call_once(|| {
+            simple_logger::init().unwrap();
+        });
+        let header = Header::new(100, 1000, 10000, 1000, FOREVER, Nanos);
+        let test_tmp_dir = TempDir::new("kektest").unwrap();
+        let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+        let txt = "There are 10 kinds of people: those who know binary and those who don't";
+        let msgs = txt.split_whitespace();
+        for m in msgs {
+            let to_wr = m.as_bytes();
+            let len = to_wr.len() as u32;
+            writer.write(&to_wr, len).unwrap();
+        }
+        let mut reader = shm_reader(&test_tmp_dir.path(), 1000).unwrap();
+        reader.move_to(8).unwrap(); //skip  heartbeat
+        assert_matches!(reader.move_to(4), Err(InvalidPosition::Unaligned { position: 4 }));
+        assert_matches!(reader.move_to(45680), Err(InvalidPosition::Unavailable { position: 45680 })); //to big
+        assert_matches!(reader.move_to(999), Err(InvalidPosition::Unaligned { position: 999 })); //unaligned
+        assert!(reader.move_to(24).is_ok());
+        assert!(reader.move_to(56).is_ok());
+        assert_matches!(reader.move_to(64), Err(InvalidPosition::Unaligned { position: 64 })); //between records
+        assert!(reader.move_to(72).is_ok());
+        assert_matches!(reader.move_to(832), Err(InvalidPosition::Unavailable { position: 832 }));
+        //to big
     }
 
     #[test]

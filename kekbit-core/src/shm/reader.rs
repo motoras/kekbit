@@ -1,6 +1,6 @@
-use crate::api::{ChannelError, ReadError, Reader};
+use crate::api::{ChannelError, InvalidPosition, ReadError, Reader};
 use crate::header::Header;
-use crate::utils::{align, load_atomic_u64, CLOSE, REC_HEADER_LEN, U64_SIZE, WATERMARK};
+use crate::utils::{align, is_aligned, load_atomic_u64, CLOSE, REC_HEADER_LEN, U64_SIZE, WATERMARK};
 use log::{error, info, warn};
 use memmap::MmapMut;
 use std::ops::FnMut;
@@ -59,9 +59,10 @@ impl ShmReader {
         &self.header
     }
 
-    ///Returns the `total` amount of bytes read so far by this reader. This amount
-    /// includes the bytes from record headers and the one used for record padding.
-    pub fn total_read(&self) -> u32 {
+    ///Returns the current read position. It *could* be the `total` amount of bytes read
+    ///so far(including bytes from record headers and the one used for record padding) *if*
+    ///no succesfull [move_to](struct.ShmReader.html#method.move_to) operation was executed on this reader.
+    pub fn position(&self) -> u32 {
         self.read_index
     }
 }
@@ -164,5 +165,66 @@ impl Reader for ShmReader {
             });
         }
         Ok(self.read_index - bytes_at_start)
+    }
+    /// Tries to move this reader to a given position if it is valid.
+    ///
+    /// Returns the position itself if the operation was successful otherwise some error.
+    ///
+    /// # Arguments
+    ///       
+    /// * `position` - Position where will try to point this reader. It must be a valid position on the channel
+    ///
+    /// # Errors
+    ///    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use kekbit_core::tick::TickUnit::Nanos;
+    /// # use kekbit_core::header::Header;
+    /// use kekbit_core::shm::*;
+    /// use crate::kekbit_core::api::Reader;
+    /// # const FOREVER: u64 = 99_999_999_999;
+    /// let writer_id = 1850;
+    /// let channel_id = 42;
+    /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
+    /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
+    /// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+    /// let mut reader = shm_reader(&test_tmp_dir.path(), channel_id).unwrap();
+    /// reader.read(&mut |pos,buf| println!("{}->{}",pos, std::str::from_utf8(buf).unwrap()), 10).unwrap();  
+    ///
+    /// reader.move_to(0);//start reading from beginning again
+    /// ```
+    ///  
+    fn move_to(&mut self, position: u32) -> Result<u32, InvalidPosition> {
+        if !is_aligned(position) {
+            return Err(InvalidPosition::Unaligned { position });
+        }
+        if position >= self.header.capacity() {
+            return Err(InvalidPosition::Unavailable { position });
+        }
+        let crt_pos = self.read_index;
+        self.read_index = 0;
+        loop {
+            if self.read_index == position {
+                return Ok(position);
+            } else if self.read_index > position {
+                self.read_index = crt_pos;
+                return Err(InvalidPosition::Unaligned { position });
+            } else {
+                match self.read(&mut |_, _| (), 1) {
+                    Ok(bytes_read) => {
+                        if bytes_read == 0 {
+                            // nothing more to read
+                            self.read_index = crt_pos;
+                            return Err(InvalidPosition::Unavailable { position });
+                        }
+                    }
+                    Err(_) => {
+                        self.read_index = crt_pos;
+                        return Err(InvalidPosition::Unavailable { position });
+                    }
+                }
+            }
+        }
     }
 }
