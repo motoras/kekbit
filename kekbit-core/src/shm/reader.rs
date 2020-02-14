@@ -3,6 +3,7 @@ use crate::header::Header;
 use crate::utils::{align, is_aligned, load_atomic_u64, CLOSE, REC_HEADER_LEN, U64_SIZE, WATERMARK};
 use log::{error, info, warn};
 use memmap::MmapMut;
+use std::cmp::Ordering::*;
 use std::ops::FnMut;
 use std::result::Result;
 use std::sync::atomic::Ordering;
@@ -205,24 +206,26 @@ impl Reader for ShmReader {
         let crt_pos = self.read_index;
         self.read_index = 0;
         loop {
-            if self.read_index == position {
-                return Ok(position);
-            } else if self.read_index > position {
-                self.read_index = crt_pos;
-                return Err(InvalidPosition::Unaligned { position });
-            } else {
-                match self.read(&mut |_, _| (), 1) {
-                    Ok(bytes_read) => {
-                        if bytes_read == 0 {
-                            // nothing more to read
+            match self.read_index.cmp(&position) {
+                Less => {
+                    match self.read(&mut |_, _| (), 1) {
+                        Ok(bytes_read) => {
+                            if bytes_read == 0 {
+                                // nothing more to read
+                                self.read_index = crt_pos;
+                                return Err(InvalidPosition::Unavailable { position });
+                            }
+                        }
+                        Err(_) => {
                             self.read_index = crt_pos;
                             return Err(InvalidPosition::Unavailable { position });
                         }
                     }
-                    Err(_) => {
-                        self.read_index = crt_pos;
-                        return Err(InvalidPosition::Unavailable { position });
-                    }
+                }
+                Equal => return Ok(position),
+                Greater => {
+                    self.read_index = crt_pos;
+                    return Err(InvalidPosition::Unaligned { position });
                 }
             }
         }
