@@ -1,6 +1,6 @@
 [package]
 name = "kekbit"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["motoras <motoras@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -17,7 +17,7 @@ members = [
 ]
 
 [dependencies.kekbit-core]
-version = "0.2.0"
+version = "0.2.1"
 path = "./kekbit-core"
 
 [badges]
