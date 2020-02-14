@@ -56,10 +56,10 @@ fn main() {
     //tries to read the requests
     loop {
         let read_res = reader.read(
-            &mut |bytes_msg| {
+            &mut |pos, bytes_msg| {
                 //extracts the request info
                 let id = read_u64(&bytes_msg, 0);
-                println!("Got request {} ", id);
+                println!("Got request {} at pos {}", id, pos);
                 let first = read_u64(&bytes_msg, 8);
                 let second = read_u64(&bytes_msg, 16);
                 //compute and sent the reply

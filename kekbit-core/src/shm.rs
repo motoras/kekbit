@@ -282,7 +282,7 @@ mod test {
         assert_eq!(reader.total_read(), 0);
         let mut res_msg = StrMsgsAppender::default();
         let bytes_read = reader
-            .read(&mut |msg| res_msg.on_message(msg), msg_count + 10 as u16)
+            .read(&mut |_pos, msg| res_msg.on_message(msg), msg_count + 10 as u16)
             .unwrap();
         assert_eq!(res_msg.txt, txt);
         assert_eq!(bytes_written, bytes_read);
@@ -302,6 +302,34 @@ mod test {
             }
             self.txt.push_str(msg_str);
         }
+    }
+
+    #[test]
+    fn check_read_position() {
+        INIT_LOG.call_once(|| {
+            simple_logger::init().unwrap();
+        });
+        let header = Header::new(100, 1000, 10000, 1000, FOREVER, Nanos);
+        let test_tmp_dir = TempDir::new("kektest").unwrap();
+        let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+        let txt = "There are 10 kinds of people: those who know binary and those who don't";
+        let msgs = txt.split_whitespace();
+        let mut msg_count = 0;
+        for m in msgs {
+            let to_wr = m.as_bytes();
+            let len = to_wr.len() as u32;
+            let size = writer.write(&to_wr, len).unwrap();
+            assert_eq!(size, align(len + REC_HEADER_LEN));
+            msg_count += 1;
+        }
+        let mut reader = shm_reader(&test_tmp_dir.path(), 1000).unwrap();
+        let mut read_bytes = 0;
+        let mut last_msg_size = 0;
+        for _i in 0..msg_count {
+            last_msg_size = reader.read(&mut |pos, _msg| assert_eq!(pos, read_bytes), 1).unwrap();
+            read_bytes += last_msg_size;
+        }
+        assert_eq!(reader.total_read(), writer.write_offset() - last_msg_size);
     }
 
     #[test]

@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Function *try_shm_reader* a convenient method to create a reader while waiting for a channel to be available.  
+- Position parameter to the reader callback. This change will break code written with versions <= 0.1.1
 
 ## [0.1.1] 2020-02-11
 

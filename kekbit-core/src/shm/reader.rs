@@ -99,11 +99,11 @@ impl Reader for ShmReader {
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
     /// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
     /// let mut reader = shm_reader(&test_tmp_dir.path(), channel_id).unwrap();
-    /// reader.read(&mut |buf| println!("{}",std::str::from_utf8(buf).unwrap()), 10).unwrap();  
+    /// reader.read(&mut |pos,buf| println!("{}->{}",pos, std::str::from_utf8(buf).unwrap()), 10).unwrap();  
     ///
     /// ```
     ///
-    fn read(&mut self, handler: &mut impl FnMut(&[u8]) -> (), message_count: u16) -> Result<u32, ReadError> {
+    fn read(&mut self, handler: &mut impl FnMut(u32, &[u8]) -> (), message_count: u16) -> Result<u32, ReadError> {
         let mut msg_read = 0u16;
         let bytes_at_start = self.read_index;
         while msg_read < message_count {
@@ -123,7 +123,7 @@ impl Reader for ShmReader {
                 }
                 if rec_len > 0 {
                     //otherwise is a heartbeat
-                    handler(unsafe {
+                    handler(self.read_index, unsafe {
                         std::slice::from_raw_parts(self.data_ptr.add(crt_index + REC_HEADER_LEN as usize), rec_len as usize)
                     });
                 }

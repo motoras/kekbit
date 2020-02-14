@@ -13,7 +13,7 @@ fn main() {
     let mut stop = false;
     while !stop {
         let read_res = reader.read(
-            &mut |msg: &[u8]| {
+            &mut |_pos, msg| {
                 let msg_str = std::str::from_utf8(&msg).unwrap();
                 println!("{}", msg_str);
             },

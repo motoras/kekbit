@@ -179,7 +179,8 @@ pub trait Reader {
     ///
     /// # Arguments
     ///
-    /// * `handler` - The callback function to be called when a record is pulled from the channel
+    /// * `handler` - The callback function to be called when a record is pulled from the channel.
+    ///             The function will receive as parameters the position of the message in the channel, and the message in binary format.
     /// * `message_count` - A hint about how many records shall be read from the channel before the method completes.
     ///                     It is expected that this method will take from the channel at most this many records
     ///
@@ -190,5 +191,5 @@ pub trait Reader {
     /// data to read pass the current read marker. However reading from beginning of the channel to the current
     /// read marker should still be a valid operation. The `Timeout` exception,
     /// may or may not be recoverable, depends on the channel `Writer` behaviour.
-    fn read(&mut self, handler: &mut impl FnMut(&[u8]) -> (), message_count: u16) -> Result<u32, ReadError>;
+    fn read(&mut self, handler: &mut impl FnMut(u32, &[u8]) -> (), message_count: u16) -> Result<u32, ReadError>;
 }
