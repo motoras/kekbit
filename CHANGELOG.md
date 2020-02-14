@@ -2,12 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.0] In Progress
+## [0.2.1] 2020-02-14
 
 ### Added
 - Function *try_shm_reader* a convenient method to create a reader while waiting for a channel to be available.  
 - Position parameter to the reader callback. This change will break code written with versions <= 0.1.1
 - ShmReader's *total_read* method was renamed *position*
+- Method move_to for the Reader traits, so it can resume work from a previous session, or skip records
 
 ## [0.1.1] 2020-02-11
 
