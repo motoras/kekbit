@@ -62,11 +62,11 @@ fn main() {
         //check for a reply, it may or may not have come yet
         reader
             .read(
-                &mut |bytes_msg| {
+                &mut |pos, bytes_msg| {
                     let id = read_u64(&bytes_msg, 0);
                     let res = read_u64(&bytes_msg, 8);
                     waiting_for.remove(&id);
-                    println!("Reply for request {} is {}", id, res);
+                    println!("Reply for request {} is {}. Pos {}", id, res, pos);
                 },
                 1,
             )
@@ -77,11 +77,11 @@ fn main() {
     while !waiting_for.is_empty() {
         reader
             .read(
-                &mut |bytes_msg| {
+                &mut |pos, bytes_msg| {
                     let id = read_u64(&bytes_msg, 0);
                     let res = read_u64(&bytes_msg, 8);
                     waiting_for.remove(&id);
-                    println!("Reply for request {} is {}", id, res);
+                    println!("Reply for request {} is {}. Pos {}", id, res, pos);
                 },
                 1,
             )

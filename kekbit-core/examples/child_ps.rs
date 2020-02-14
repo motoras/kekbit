@@ -60,7 +60,7 @@ pub fn run_reader() -> Result<(), ()> {
     let mut stop = false;
     let mut msg_count = 0;
     while !stop {
-        match reader.read(&mut |_| msg_count += 1, 30u16) {
+        match reader.read(&mut |_, _| msg_count += 1, 30u16) {
             Ok(bytes_read) => total_bytes += bytes_read as u64,
             Err(read_err) => match read_err {
                 ReadError::Timeout { .. } => {

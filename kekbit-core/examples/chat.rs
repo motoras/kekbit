@@ -49,7 +49,7 @@ fn run_reader(other_id: u64, channel_id: u64, run: Arc<AtomicBool>) {
     while run.load(Ordering::Relaxed) == true {
         let mut stop = false;
         let read_res = reader.read(
-            &mut |msg: &[u8]| {
+            &mut |_pos, msg: &[u8]| {
                 let msg_str = std::str::from_utf8(&msg).unwrap();
                 println!("{} >{}", other_id, msg_str);
                 if msg_str == "Bye".to_string() {
