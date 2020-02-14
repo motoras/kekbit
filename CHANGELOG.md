@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2] In Development
+
 ## [0.2.1] 2020-02-14
 
 ### Added

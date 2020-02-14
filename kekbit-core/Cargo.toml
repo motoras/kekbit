@@ -1,6 +1,6 @@
 [package]
 name = "kekbit-core"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["motoras <motoras@gmail.com>"]
 edition = "2018"
 license = "MIT"
