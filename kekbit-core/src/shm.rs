@@ -285,7 +285,7 @@ mod test {
         assert_eq!(reader.position(), 0);
         let mut res_msg = StrMsgsAppender::default();
         let bytes_read = reader
-            .read(&mut |_pos, msg| res_msg.on_message(msg), msg_count + 10 as u16)
+            .read(&mut |_, msg| res_msg.on_message(msg), msg_count + 10 as u16)
             .unwrap();
         assert_eq!(res_msg.txt, txt);
         assert_eq!(bytes_written, bytes_read);

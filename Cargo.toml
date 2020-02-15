@@ -13,12 +13,17 @@ keywords = [ "data-channel", "state-replication", "transactions-journal",  "ipc"
 [workspace]
 members = [
   ".",
-  "kekbit-core",
+  "kekbit-core", "kekbit-codecs"
 ]
 
 [dependencies.kekbit-core]
 version = "0.2.2"
 path = "./kekbit-core"
+
+[dependencies.kekbit-codecs]
+version = "0.1.0"
+path = "./kekbit-codecs"
+
 
 [badges]
 travis-ci = { repository = "motoras/kekbit", branch = "master" }
