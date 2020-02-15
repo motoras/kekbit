@@ -4,6 +4,7 @@ use crate::header::Header;
 use crate::utils::{align, store_atomic_u64, CLOSE, REC_HEADER_LEN, WATERMARK};
 use log::{debug, error, info};
 use memmap::MmapMut;
+use std::io::Write;
 use std::ptr::copy_nonoverlapping;
 use std::result::Result;
 use std::sync::atomic::Ordering;
@@ -215,5 +216,106 @@ impl ShmWriter {
     #[inline]
     pub fn header(&self) -> &Header {
         &self.header
+    }
+}
+
+struct KekWrite {
+    write_ptr: *mut u8,
+    max_size: usize,
+    total: usize,
+    failed: bool,
+}
+
+impl KekWrite {
+    #[inline]
+    fn new(write_ptr: *mut u8, max_size: usize) -> KekWrite {
+        KekWrite {
+            write_ptr,
+            max_size,
+            total: 0,
+            failed: false,
+        }
+    }
+    #[inline]
+    fn reset(&mut self, write_ptr: *mut u8, max_size: usize) {
+        self.write_ptr = write_ptr;
+        self.max_size = max_size;
+        self.total = 0;
+        self.failed = false;
+    }
+}
+
+impl Write for KekWrite {
+    #[inline]
+    fn write(&mut self, data: &[u8]) -> Result<usize, std::io::Error> {
+        let data_len = data.len();
+        if self.total + data_len > self.max_size || self.failed {
+            self.failed |= true;
+            return Ok(0);
+        }
+        unsafe {
+            let crt_ptr: *mut u8;
+            if self.total > 0 {
+                crt_ptr = self.write_ptr.offset(self.total as isize);
+            } else {
+                crt_ptr = self.write_ptr;
+            }
+            copy_nonoverlapping(data.as_ptr(), crt_ptr, data_len);
+            self.total += data_len;
+        }
+        Ok(data_len)
+    }
+    #[inline]
+    fn flush(&mut self) -> Result<(), std::io::Error> {
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_write() {
+        let mut raw_data: [u8; 1000] = [0; 1000];
+        let write_ptr = raw_data.as_mut_ptr();
+        let mut kw = KekWrite::new(write_ptr, 20);
+        kw.flush().unwrap(); //should never crash as it does nothing
+        let d1: [u8; 10] = [1; 10];
+        let r1 = kw.write(&d1).unwrap();
+        assert_eq!(kw.total, r1);
+        assert!(!kw.failed);
+        for i in 0..10 {
+            assert_eq!(raw_data[i], 1);
+        }
+        kw.flush().unwrap(); //should never crash as it does nothing
+        let r2 = kw.write(&d1).unwrap();
+        assert_eq!(kw.total, r1 + r2);
+        assert!(!kw.failed);
+        for i in 10..20 {
+            assert_eq!(raw_data[i], 1);
+        }
+        let r3 = kw.write(&d1).unwrap();
+        assert_eq!(0, r3);
+        assert!(kw.failed);
+        kw.reset(write_ptr, 15);
+        assert!(!kw.failed);
+        let d2: [u8; 10] = [2; 10];
+        let r4 = kw.write(&d2).unwrap();
+        assert_eq!(kw.total, r4);
+        assert!(!kw.failed);
+        for i in 0..10 {
+            assert_eq!(raw_data[i], 2);
+        }
+        assert_eq!(kw.total, 10);
+        let r5 = kw.write(&d2).unwrap();
+        assert_eq!(0, r5);
+        assert!(kw.failed);
+        assert_eq!(kw.total, 10);
+        //once it fails it will never recover, even if it has enough space
+        let r6 = kw.write(&d2[0..3]).unwrap();
+        assert_eq!(0, r6);
+        assert!(kw.failed);
+        assert_eq!(kw.total, 10);
     }
 }
