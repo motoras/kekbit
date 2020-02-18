@@ -122,6 +122,7 @@ impl Writer for ShmWriter {
     /// writer.write(&msg_data, msg_data.len() as u32).unwrap();
     /// ```
     #[allow(clippy::cast_ptr_alignment)]
+    #[allow(clippy::unused_io_amount)]
     fn write(&mut self, data: &[u8], _len: u32) -> Result<u32, WriteError> {
         let read_head_ptr = unsafe { self.data_ptr.add(self.write_offset as usize) };
         let write_ptr = unsafe { read_head_ptr.add(REC_HEADER_LEN as usize) };
@@ -132,8 +133,8 @@ impl Writer for ShmWriter {
         let alen = min(self.header.max_msg_len(), available - REC_HEADER_LEN) as usize;
         //self.encoder.encode(data, self.write.reset(write_ptr, len));
         self.write.reset(write_ptr, alen);
-        self.write.write(data).unwrap();
-        if !self.write.failed {
+        let total = self.write.write(data).unwrap(); //this will cahnge to encoder
+        if total > 0 && !self.write.failed {
             let aligned_rec_len = align(self.write.total as u32 + REC_HEADER_LEN);
             self.write_metadata(read_head_ptr as *mut u64, self.write.total as u64, aligned_rec_len >> 3);
             self.write_offset += aligned_rec_len;
@@ -269,19 +270,19 @@ impl Write for KekWrite {
         }
         let data_len = data.len();
         if self.total + data_len > self.max_size {
-            self.failed = true;
+            self.failed |= true;
             return Ok(0);
         }
         unsafe {
-            let crt_ptr: *mut u8;
-            if self.total > 0 {
-                crt_ptr = self.write_ptr.offset(self.total as isize);
-            } else {
-                crt_ptr = self.write_ptr;
-            }
+            // let crt_ptr = if self.total > 0 {
+            //     self.write_ptr.add(self.total as usize)
+            // } else {
+            //     self.write_ptr
+            // };
+            let crt_ptr = self.write_ptr.add(self.total as usize);
             copy_nonoverlapping(data.as_ptr(), crt_ptr, data_len);
-            self.total += data_len;
         }
+        self.total += data_len;
         Ok(data_len)
     }
     #[inline]
