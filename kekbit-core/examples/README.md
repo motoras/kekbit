@@ -17,7 +17,7 @@ In order to start the *writer*, in the kekbit_core folder type:
  ```
  
 After the writer had started, in a separate console start the *reader*, from the same kekbit_core folder:
- ```cargo run --example echo_out  <channel_id>```
+ ```cargo run --example echo_out <channel_id>```
  
  E.g:
  ```
