@@ -13,7 +13,7 @@ use std::result::Result;
 use std::sync::atomic::Ordering;
 
 /// An implementation of the [Writer](trait.Writer.html) which access a persistent channel through
-/// memory mapping, and uses a specific [DataFormat]()(../codecs/trait.DataFormat.html). A `ShmWriter` must be created using the [shm_writer](fn.shm_writer.html) function.
+/// memory mapping, and uses a specific [DataFormat](../codecs/trait.DataFormat.html). A `ShmWriter` must be created using the [shm_writer](fn.shm_writer.html) function.
 /// Any `ShmWriter` exclusively holds the channel is bound to, and it is *not thread safe*.
 /// If multiple threads must write into a channel they should be externally synchronized.
 ///
@@ -98,7 +98,7 @@ impl<D: DataFormat> Writer<D> for ShmWriter<D> {
     ///
     /// # Arguments
     ///
-    /// *`data` - The  data which to encode and  write into the channel.
+    /// * `data` - The  data which to encode and  write into the channel.
     ///
     /// # Errors
     ///
@@ -126,8 +126,9 @@ impl<D: DataFormat> Writer<D> for ShmWriter<D> {
     /// let msg_data = msg.as_bytes();
     /// writer.write(&msg_data).unwrap();
     /// ```
+    ///
     #[allow(clippy::cast_ptr_alignment)]
-    #[allow(clippy::unused_io_amount)]
+    //#[allow(clippy::unused_io_amount)]
     fn write(&mut self, data: &impl Encodable<D>) -> Result<u32, WriteError> {
         let read_head_ptr = unsafe { self.data_ptr.add(self.write_offset as usize) };
         let write_ptr = unsafe { read_head_ptr.add(REC_HEADER_LEN as usize) };
@@ -153,14 +154,16 @@ impl<D: DataFormat> Writer<D> for ShmWriter<D> {
         }
     }
     ///Push a heartbeat message into the channel. Hearbeats are zero sized messages which do not need encoding.
-    ///Reader should never activate callbacks for heartbeat messsages. 	
+    ///Reader should never activate callbacks for heartbeat messsages.
     ///
-    /// Returns Ok(RecordHeaderLen) (8 in the current case) if the operation succeeds.
+    /// Returns RecordHeaderLen, 8 in the current version if the operation succeeds.
     ///
-    ///	# Errors				
+    /// # Errors
     ///
     /// If the operation fails a *ChannelFull* error will be returned, which signals that the channel will not accept any new messages.
+    ///
     #[allow(clippy::cast_ptr_alignment)]
+    #[inline]
     fn heartbeat(&mut self) -> Result<u32, WriteError> {
         let read_head_ptr = unsafe { self.data_ptr.add(self.write_offset as usize) };
         let available = self.available();
