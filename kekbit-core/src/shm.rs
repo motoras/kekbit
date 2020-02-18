@@ -8,6 +8,8 @@ use memmap::MmapOptions;
 
 use crate::api::ChannelError;
 use crate::api::ChannelError::*;
+
+use crate::utils::FOOTER_LEN;
 use std::fs::OpenOptions;
 use std::fs::{remove_file, DirBuilder};
 use std::path::Path;
@@ -192,7 +194,7 @@ pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, Channe
                 file_name: err.to_string(),
             })
         })?;
-    let total_len = (header.capacity() + header.len() as u32) as u64;
+    let total_len = (header.capacity() + header.len() as u32 + FOOTER_LEN) as u64;
     kek_file.set_len(total_len).or_else(|err| {
         Err(CouldNotAccessStorage {
             file_name: err.to_string(),

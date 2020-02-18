@@ -65,13 +65,16 @@ pub enum ChannelError {
 ///Write operation errors
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum WriteError {
-    /// There is not enough space available in the channel for such an operation.
+    ///There is not enough space available in the channel for any write. The channel is full.
+    ChannelFull,
     NoSpaceAvailable {
         ///The space amount required by the record. It will be larger than the record size.
         required: u32,
         ///The space amount available in the channel.
         left: u32,
     },
+    /// The record was larger than the maximum allowed size or the maximum available space.
+    NoSpaceForRecord,
     /// The record was longer than the maximum allowed.
     MaxRecordLenExceed {
         ///The size of the record to be written.
@@ -80,8 +83,6 @@ pub enum WriteError {
         max_allowed: u32,
     },
 }
-
-static HEARTBEAT_MSG: &[u8] = &[];
 
 ///The `Writer` trait allows writing chunk of bytes as records into a kekbit channel.
 /// Implementers of this trait are called 'kekbit writers'. Usually a writer is bound to
@@ -116,11 +117,8 @@ pub trait Writer {
     ///
     /// If this call fails, than an error variant will be returned. However
     /// in this case the errors are not recoverable, they signal that the channel is at the
-    /// end of its lifetime.
-    #[inline(always)]
-    fn heartbeat(&mut self) -> Result<u32, WriteError> {
-        self.write(HEARTBEAT_MSG, 0)
-    }
+    /// end of its lifetime.    
+    fn heartbeat(&mut self) -> Result<u32, WriteError>;
 
     /// Flushes the stream which possibly backs the kekbit writer.
     /// By default this method does nothing, and should be implemented only for `Writer`s which
