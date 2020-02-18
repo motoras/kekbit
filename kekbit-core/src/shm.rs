@@ -10,6 +10,7 @@ use crate::api::ChannelError;
 use crate::api::ChannelError::*;
 
 use crate::utils::FOOTER_LEN;
+use kekbit_codecs::codecs::DataFormat;
 use std::fs::OpenOptions;
 use std::fs::{remove_file, DirBuilder};
 use std::path::Path;
@@ -34,13 +35,14 @@ use writer::ShmWriter;
 /// ```
 /// # use kekbit_core::tick::TickUnit::Nanos;
 /// # use kekbit_core::header::Header;
+/// # use kekbit_codecs::codecs::raw::RawBinDataFormat;
 /// use kekbit_core::shm::*;
 /// # const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
 /// let channel_id = 42;
 /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-/// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+/// # let writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
 /// let reader = shm_reader(&test_tmp_dir.path(), channel_id).unwrap();
 /// println!("{:?}", reader.header());
 ///
@@ -101,13 +103,14 @@ pub fn shm_reader(root_path: &Path, channel_id: u64) -> Result<ShmReader, Channe
 /// ```
 /// # use kekbit_core::tick::TickUnit::Nanos;
 /// # use kekbit_core::header::Header;
+/// # use kekbit_codecs::codecs::raw::RawBinDataFormat;
 /// use kekbit_core::shm::*;
 /// # const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
 /// let channel_id = 42;
 /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-/// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+/// # let writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
 /// let duration = 1000;
 /// let tries = 10;
 /// let reader = try_shm_reader(&test_tmp_dir.path(), channel_id, duration, tries).unwrap();
@@ -148,6 +151,7 @@ pub fn try_shm_reader(root_path: &Path, channel_id: u64, duration_millis: u64, t
 /// use kekbit_core::shm::*;
 /// use kekbit_core::header::Header;
 /// use kekbit_core::api::Writer;
+/// use kekbit_codecs::codecs::raw::RawBinDataFormat;
 ///
 /// const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
@@ -156,10 +160,10 @@ pub fn try_shm_reader(root_path: &Path, channel_id: u64, duration_millis: u64, t
 /// let max_msg_len = 100;
 /// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-/// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+/// let mut writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
 /// writer.heartbeat().unwrap();
 /// ```
-pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, ChannelError> {
+pub fn shm_writer<D: DataFormat>(root_path: &Path, header: &Header, df: D) -> Result<ShmWriter<D>, ChannelError> {
     let kek_file_path = storage_path(root_path, header.channel_id()).into_path_buf();
     if kek_file_path.exists() {
         return Err(StorageAlreadyExists {
@@ -207,7 +211,7 @@ pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, Channe
     header.write_to(buf);
     mmap.flush().or_else(|err| Err(AccessError { reason: err.to_string() }))?;
     info!("Kekbit channel with store {:?} succesfully initialized", kek_file_path);
-    let res = ShmWriter::new(mmap);
+    let res = ShmWriter::new(mmap, df);
     if res.is_err() {
         error!("Kekbit writer creation error . The file {:?} will be removed!", kek_file_path);
         remove_file(&kek_file_path).expect("Could not remove kekbit file");
@@ -242,6 +246,7 @@ mod test {
     use crate::tick::TickUnit::Nanos;
     use crate::utils::{align, REC_HEADER_LEN};
     use assert_matches::*;
+    use kekbit_codecs::codecs::raw::RawBinDataFormat;
     use std::sync::Arc;
     use std::sync::Once;
     use tempdir::TempDir;
@@ -254,7 +259,7 @@ mod test {
     fn check_max_len() {
         let header = Header::new(100, 1000, 300_000, 1000, FOREVER, Nanos);
         let test_tmp_dir = TempDir::new("kektest").unwrap();
-        let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+        let writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
         let reader = shm_reader(&test_tmp_dir.path(), 1000).unwrap();
         assert_eq!(writer.header(), reader.header());
     }
@@ -266,7 +271,7 @@ mod test {
         });
         let header = Header::new(100, 1000, 10000, 1000, FOREVER, Nanos);
         let test_tmp_dir = TempDir::new("kektest").unwrap();
-        let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+        let mut writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
         let txt = "There are 10 kinds of people: those who know binary and those who don't";
         let msgs = txt.split_whitespace();
         let mut msg_count = 0;
@@ -314,7 +319,7 @@ mod test {
         });
         let header = Header::new(100, 1000, 10000, 1000, FOREVER, Nanos);
         let test_tmp_dir = TempDir::new("kektest").unwrap();
-        let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+        let mut writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
         let txt = "There are 10 kinds of people: those who know binary and those who don't";
         let msgs = txt.split_whitespace();
         let mut msg_count = 0;
@@ -342,7 +347,7 @@ mod test {
         });
         let header = Header::new(100, 1000, 10000, 1000, FOREVER, Nanos);
         let test_tmp_dir = TempDir::new("kektest").unwrap();
-        let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+        let mut writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
         let txt = "There are 10 kinds of people: those who know binary and those who don't";
         let msgs = txt.split_whitespace();
         let mut msg_count = 0;
@@ -393,7 +398,7 @@ mod test {
         });
         let header = Header::new(100, 1000, 10000, 1000, FOREVER, Nanos);
         let test_tmp_dir = TempDir::new("kektest").unwrap();
-        let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+        let mut writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
         let txt = "There are 10 kinds of people: those who know binary and those who don't";
         let msgs = txt.split_whitespace();
         for m in msgs {
@@ -464,7 +469,7 @@ mod test {
             assert!(good_reader.is_err());
         });
         let header = Header::new(100, 1000, 10000, 1000, FOREVER, Nanos);
-        shm_writer(&root_dir.path(), &header).unwrap();
+        shm_writer(&root_dir.path(), &header, RawBinDataFormat).unwrap();
         handle.join().unwrap();
     }
 }

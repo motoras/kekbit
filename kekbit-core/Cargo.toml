@@ -14,6 +14,10 @@ keywords = ["lock-free", "data-channel", "persitent-queue", "request-reply"]
 memmap = "0.7.0"
 log = "0.4.8"
 
+[dependencies.kekbit-codecs]
+version = "0.1.0"
+path = "../kekbit-codecs"
+
 
 [dev-dependencies]
 tempdir = "0.3.7"

@@ -2,6 +2,7 @@ use crate::api::ChannelError::AccessError;
 use crate::api::{ChannelError, WriteError, Writer};
 use crate::header::Header;
 use crate::utils::{align, store_atomic_u64, CLOSE, REC_HEADER_LEN, WATERMARK};
+use kekbit_codecs::codecs::DataFormat;
 use log::{debug, error, info};
 use memmap::MmapMut;
 use std::cmp::min;
@@ -9,6 +10,7 @@ use std::io::Write;
 use std::ptr::copy_nonoverlapping;
 use std::result::Result;
 use std::sync::atomic::Ordering;
+
 /// An implementation of the [Writer](trait.Writer.html) which access a persistent channel through
 /// memory mapping. A `ShmWriter` must be created using the [shm_writer](fn.shm_writer.html) function.
 /// Any `ShmWriter` exclusively holds the channel is bound to, and it is *not thread safe*.
@@ -21,6 +23,7 @@ use std::sync::atomic::Ordering;
 /// use kekbit_core::shm::*;
 /// use kekbit_core::header::Header;
 /// use kekbit_core::api::Writer;
+/// use kekbit_codecs::codecs::raw::RawBinDataFormat;
 ///
 /// const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
@@ -29,20 +32,21 @@ use std::sync::atomic::Ordering;
 /// let max_msg_len = 100;
 /// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-/// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+/// let mut writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
 /// writer.heartbeat().unwrap();
 /// ```
-pub struct ShmWriter {
+pub struct ShmWriter<D: DataFormat> {
     header: Header,
     data_ptr: *mut u8,
     write_offset: u32,
     mmap: MmapMut,
+    df: D,
     write: KekWrite,
 }
 
-impl ShmWriter {
+impl<D: DataFormat> ShmWriter<D> {
     #[allow(clippy::cast_ptr_alignment)]
-    pub(super) fn new(mut mmap: MmapMut) -> Result<ShmWriter, ChannelError> {
+    pub(super) fn new(mut mmap: MmapMut, df: D) -> Result<ShmWriter<D>, ChannelError> {
         let buf = &mut mmap[..];
         let header = Header::read(buf)?;
         let header_ptr = buf.as_ptr() as *mut u64;
@@ -54,6 +58,7 @@ impl ShmWriter {
             data_ptr,
             write_offset: 0,
             mmap,
+            df,
             write,
         };
         info!(
@@ -83,7 +88,7 @@ impl ShmWriter {
     }
 }
 
-impl Writer for ShmWriter {
+impl<D: DataFormat> Writer for ShmWriter<D> {
     /// Writes a  message into the channel. This operation will copy the message into the channel storage.
     /// While this is a non blocking operation, only one write should be executed at any given time.
     ///
@@ -108,6 +113,7 @@ impl Writer for ShmWriter {
     /// use kekbit_core::shm::*;
     /// use kekbit_core::header::Header;
     /// use kekbit_core::api::Writer;
+    /// use kekbit_codecs::codecs::raw::RawBinDataFormat;
     ///
     /// const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
@@ -116,7 +122,7 @@ impl Writer for ShmWriter {
     /// let max_msg_len = 100;
     /// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-    /// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+    /// let mut writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
     /// let msg = "There are 10 kinds of people: those who know binary and those who don't";
     /// let msg_data = msg.as_bytes();
     /// writer.write(&msg_data, msg_data.len() as u32).unwrap();
@@ -175,6 +181,7 @@ impl Writer for ShmWriter {
     /// use kekbit_core::shm::*;
     /// use kekbit_core::header::Header;
     /// use kekbit_core::api::Writer;
+    /// use kekbit_codecs::codecs::raw::RawBinDataFormat;
     ///
     /// const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
@@ -183,7 +190,7 @@ impl Writer for ShmWriter {
     /// let max_msg_len = 100;
     /// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-    /// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+    /// let mut writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
     /// let msg = "There are 10 kinds of people: those who know binary and those who don't";
     /// let msg_data = msg.as_bytes();
     /// writer.write(&msg_data, msg_data.len() as u32).unwrap();
@@ -195,7 +202,7 @@ impl Writer for ShmWriter {
         self.mmap.flush()
     }
 }
-impl Drop for ShmWriter {
+impl<D: DataFormat> Drop for ShmWriter<D> {
     /// Marks this channel as `closed`, flushes the changes to the disk, and removes the memory mapping.
     fn drop(&mut self) {
         let write_index = self.write_offset;
@@ -215,7 +222,7 @@ impl Drop for ShmWriter {
         }
     }
 }
-impl ShmWriter {
+impl<D: DataFormat> ShmWriter<D> {
     ///Returns the amount of space in this channel still available for write.
     #[inline]
     pub fn available(&self) -> u32 {
@@ -231,6 +238,10 @@ impl ShmWriter {
     #[inline]
     pub fn header(&self) -> &Header {
         &self.header
+    }
+    #[inline]
+    pub fn data_format(&self) -> &D {
+        &self.df
     }
 }
 

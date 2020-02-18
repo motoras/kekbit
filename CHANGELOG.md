@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [0.2.2] In Development
 
+### Added
+- Create the new codecs subcrate
+- Provide the first iteration of the data format and encoding traits
+
 ### Fixed
 - ShmWriter will try to write one more record than space available
 

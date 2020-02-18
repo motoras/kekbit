@@ -4,6 +4,7 @@
 //! u64 values: the id of the request and the sum of the two values from request.
 //! In order to start the replier type cargo run --example rep <reply_channel_id> <request_channel_id>
 use crossbeam::utils::Backoff;
+use kekbit_codecs::codecs::raw::RawBinDataFormat;
 use kekbit_core::api::Reader;
 use kekbit_core::api::Writer;
 use kekbit_core::header::Header;
@@ -44,7 +45,7 @@ fn main() {
         Secs,
     );
     //creates the channel where the replies will be sent together with the associated writer
-    let mut writer = shm_writer(&tmp_dir, &header).unwrap();
+    let mut writer = shm_writer(&tmp_dir, &header, RawBinDataFormat).unwrap();
     //tries to connect to the channel where the requests are pushed
     let reader_rep = try_shm_reader(&tmp_dir, req_channel_id, 5000, 15);
     if reader_rep.is_err() {
