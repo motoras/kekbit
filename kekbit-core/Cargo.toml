@@ -6,7 +6,6 @@ edition = "2018"
 license = "MIT"
 description = "Defines the main abstractions and provides the core components required to work with kekbit channels"
 homepage = "https://github.com/motoras/kekbit"
-documentation="https://docs.rs/kekbit-core/0.1.0/kekbit_core/"
 repository="https://github.com/motoras/kekbit/tree/master/kekbit-core"
 keywords = ["lock-free", "data-channel", "persitent-queue", "request-reply"]
 
@@ -15,7 +14,7 @@ memmap = "0.7.0"
 log = "0.4.8"
 
 [dependencies.kekbit-codecs]
-version = "0.1.0"
+version = "0.1.1"
 path = "../kekbit-codecs"
 
 

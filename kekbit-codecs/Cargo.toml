@@ -1,13 +1,13 @@
 [package]
 name = "kekbit-codecs"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["motoras <motoras@gmail.com>"]
 edition = "2018"
 license = "MIT"
 description = "Kekbit channels adapters, that allow to directly write and read data structures into a channel"
 homepage = "https://github.com/motoras/kekbit"
-repository="https://github.com/motoras/kekbit/tree/master/kekbit-core"
-keywords = ["lock-free", "data-channel", "persitent-queue", "request-reply"]
+repository="https://github.com/motoras/kekbit/tree/master/kekbit-codecs"
+keywords = ["data-formats"]
 
 [dependencies]
 log = "0.4.8"

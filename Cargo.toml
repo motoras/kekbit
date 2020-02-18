@@ -1,6 +1,6 @@
 [package]
 name = "kekbit"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["motoras <motoras@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -17,11 +17,11 @@ members = [
 ]
 
 [dependencies.kekbit-core]
-version = "0.2.2"
+version = "0.2.3"
 path = "./kekbit-core"
 
 [dependencies.kekbit-codecs]
-version = "0.1.0"
+version = "0.1.1"
 path = "./kekbit-codecs"
 
 
