@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.2] In Development
+## [0.2.2] 2020-02-18
 
 ### Added
 - Create the new codecs subcrate
