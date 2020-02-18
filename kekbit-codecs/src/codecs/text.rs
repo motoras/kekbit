@@ -1,9 +1,10 @@
 use crate::codecs::DataFormat;
 use crate::codecs::Encodable;
+use std::io::Result;
 use std::io::Write;
 
 const ID: u64 = 3;
-const MEDIA_TYPE: &'static str = "text/plain";
+const MEDIA_TYPE: &str = "text/plain";
 
 ///Simple unstructured text format. Any applications which just want to exchange plain text may used
 /// (e.g. a chat clients, or an application used to exchang text files between peers).
@@ -22,15 +23,15 @@ impl DataFormat for PlainTextDataFormat {
 
 impl Encodable<PlainTextDataFormat> for String {
     #[inline]
-    fn encode_to(&self, _format: &PlainTextDataFormat, w: &mut impl Write) {
-        w.write(self.as_bytes()).unwrap();
+    fn encode_to(&self, _format: &PlainTextDataFormat, w: &mut impl Write) -> Result<usize> {
+        w.write(self.as_bytes())
     }
 }
 
 impl<'a> Encodable<PlainTextDataFormat> for &'a str {
     #[inline]
-    fn encode_to(&self, _format: &PlainTextDataFormat, w: &mut impl Write) {
-        w.write(self.as_bytes()).unwrap();
+    fn encode_to(&self, _format: &PlainTextDataFormat, w: &mut impl Write) -> Result<usize> {
+        w.write(self.as_bytes())
     }
 }
 
@@ -45,9 +46,9 @@ mod test {
         let mut cursor = Cursor::new(&mut vec);
         let df = PlainTextDataFormat;
         let msg = "They are who we thought they are";
-        msg.encode_to(&df, &mut cursor);
+        msg.encode_to(&df, &mut cursor).unwrap();
         assert_eq!(cursor.position() as usize, msg.len());
-        msg.to_string().encode_to(&df, &mut cursor);
+        msg.to_string().encode_to(&df, &mut cursor).unwrap();
         assert_eq!(cursor.position() as usize, 2 * msg.len());
     }
 

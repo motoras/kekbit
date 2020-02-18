@@ -12,7 +12,7 @@ pub trait DataFormat {
 
 ///An entity which can be written in a channel using the specified data format
 pub trait Encodable<D: DataFormat> {
-    fn encode_to(&self, d: &D, w: &mut impl Write);
+    fn encode_to(&self, d: &D, w: &mut impl Write) -> std::io::Result<usize>;
 }
 
 // struct JsonDataFormat;

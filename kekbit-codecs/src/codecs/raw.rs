@@ -1,9 +1,10 @@
 use crate::codecs::DataFormat;
 use crate::codecs::Encodable;
+use std::io::Result;
 use std::io::Write;
 
 const ID: u64 = 2;
-const MEDIA_TYPE: &'static str = "application/octet-stream";
+const MEDIA_TYPE: &str = "application/octet-stream";
 
 /// The most basic data format. It just simply writes raw bytes into the channel, without
 /// any regard of the underlying data's structure
@@ -23,8 +24,8 @@ impl DataFormat for RawBinDataFormat {
 
 impl<'a> Encodable<RawBinDataFormat> for &'a [u8] {
     #[inline]
-    fn encode_to(&self, _format: &RawBinDataFormat, w: &mut impl Write) {
-        w.write(self).unwrap();
+    fn encode_to(&self, _format: &RawBinDataFormat, w: &mut impl Write) -> Result<usize> {
+        w.write(self)
     }
 }
 
@@ -48,7 +49,7 @@ mod test {
         let mut cursor = Cursor::new(&mut vec);
         let msg = &[1u8; 10][..];
         let df = RawBinDataFormat;
-        msg.encode_to(&df, &mut cursor);
+        msg.encode_to(&df, &mut cursor).unwrap();
         assert_eq!(cursor.position() as usize, msg.len());
         cursor.set_position(0);
         let expected = &mut [11u8; 10][..];
