@@ -2,6 +2,8 @@ use crate::api::ChannelError::AccessError;
 use crate::api::{ChannelError, WriteError, Writer};
 use crate::header::Header;
 use crate::utils::{align, store_atomic_u64, CLOSE, REC_HEADER_LEN, WATERMARK};
+use kekbit_codecs::codecs::DataFormat;
+use kekbit_codecs::codecs::Encodable;
 use log::{debug, error, info};
 use memmap::MmapMut;
 use std::cmp::min;
@@ -9,8 +11,9 @@ use std::io::Write;
 use std::ptr::copy_nonoverlapping;
 use std::result::Result;
 use std::sync::atomic::Ordering;
+
 /// An implementation of the [Writer](trait.Writer.html) which access a persistent channel through
-/// memory mapping. A `ShmWriter` must be created using the [shm_writer](fn.shm_writer.html) function.
+/// memory mapping, and uses a specific [DataFormat](../codecs/trait.DataFormat.html). A `ShmWriter` must be created using the [shm_writer](fn.shm_writer.html) function.
 /// Any `ShmWriter` exclusively holds the channel is bound to, and it is *not thread safe*.
 /// If multiple threads must write into a channel they should be externally synchronized.
 ///
@@ -21,6 +24,7 @@ use std::sync::atomic::Ordering;
 /// use kekbit_core::shm::*;
 /// use kekbit_core::header::Header;
 /// use kekbit_core::api::Writer;
+/// use kekbit_codecs::codecs::raw::RawBinDataFormat;
 ///
 /// const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
@@ -29,20 +33,21 @@ use std::sync::atomic::Ordering;
 /// let max_msg_len = 100;
 /// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-/// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+/// let mut writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
 /// writer.heartbeat().unwrap();
 /// ```
-pub struct ShmWriter {
+pub struct ShmWriter<D: DataFormat> {
     header: Header,
     data_ptr: *mut u8,
     write_offset: u32,
     mmap: MmapMut,
+    df: D,
     write: KekWrite,
 }
 
-impl ShmWriter {
+impl<D: DataFormat> ShmWriter<D> {
     #[allow(clippy::cast_ptr_alignment)]
-    pub(super) fn new(mut mmap: MmapMut) -> Result<ShmWriter, ChannelError> {
+    pub(super) fn new(mut mmap: MmapMut, df: D) -> Result<ShmWriter<D>, ChannelError> {
         let buf = &mut mmap[..];
         let header = Header::read(buf)?;
         let header_ptr = buf.as_ptr() as *mut u64;
@@ -54,6 +59,7 @@ impl ShmWriter {
             data_ptr,
             write_offset: 0,
             mmap,
+            df,
             write,
         };
         info!(
@@ -83,8 +89,8 @@ impl ShmWriter {
     }
 }
 
-impl Writer for ShmWriter {
-    /// Writes a  message into the channel. This operation will copy the message into the channel storage.
+impl<D: DataFormat> Writer<D> for ShmWriter<D> {
+    /// Writes a message into the channel. This operation will encode the data directly into  channel.
     /// While this is a non blocking operation, only one write should be executed at any given time.
     ///
     /// Returns the total amount of bytes wrote into the channel which includes, the size of the message,
@@ -92,22 +98,21 @@ impl Writer for ShmWriter {
     ///
     /// # Arguments
     ///
-    /// *`data` - The buffer which contains the data which is going to be wrote into the channel.
-    /// * `len` - The amount of data which is going to be wrote into to he channel
+    /// * `data` - The  data which to encode and  write into the channel.
     ///
     /// # Errors
     ///
-    /// Two types of [failures](enum.WriteError.html) may occur: message size is larger than the maximum allowed,
-    /// or the there is not enough space in the channel to write that message. In the second case, a future write may succeed,
-    /// if the message has a smaller size that the current one.
+    /// Two kinds of [failures](enum.WriteError.html) may occur. One if the encoding operation failed, the other if the channel
+    /// rejected the message for reasons such data is too large or no space is available in the channel.
     ///
-    ////// # Examples
+    /// # Examples
     ///
     /// ```
     /// use kekbit_core::tick::TickUnit::Nanos;
     /// use kekbit_core::shm::*;
     /// use kekbit_core::header::Header;
     /// use kekbit_core::api::Writer;
+    /// use kekbit_codecs::codecs::raw::RawBinDataFormat;
     ///
     /// const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
@@ -116,35 +121,48 @@ impl Writer for ShmWriter {
     /// let max_msg_len = 100;
     /// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-    /// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+    /// let mut writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
     /// let msg = "There are 10 kinds of people: those who know binary and those who don't";
     /// let msg_data = msg.as_bytes();
-    /// writer.write(&msg_data, msg_data.len() as u32).unwrap();
+    /// writer.write(&msg_data).unwrap();
     /// ```
+    ///
     #[allow(clippy::cast_ptr_alignment)]
-    #[allow(clippy::unused_io_amount)]
-    fn write(&mut self, data: &[u8], _len: u32) -> Result<u32, WriteError> {
+    fn write(&mut self, data: &impl Encodable<D>) -> Result<u32, WriteError> {
         let read_head_ptr = unsafe { self.data_ptr.add(self.write_offset as usize) };
         let write_ptr = unsafe { read_head_ptr.add(REC_HEADER_LEN as usize) };
         let available = self.available();
         if available <= REC_HEADER_LEN {
             return Err(WriteError::ChannelFull);
         }
-        let alen = min(self.header.max_msg_len(), available - REC_HEADER_LEN) as usize;
-        //self.encoder.encode(data, self.write.reset(write_ptr, len));
-        self.write.reset(write_ptr, alen);
-        let total = self.write.write(data).unwrap(); //this will cahnge to encoder
-        if total > 0 && !self.write.failed {
-            let aligned_rec_len = align(self.write.total as u32 + REC_HEADER_LEN);
-            self.write_metadata(read_head_ptr as *mut u64, self.write.total as u64, aligned_rec_len >> 3);
-            self.write_offset += aligned_rec_len;
-            Ok(aligned_rec_len)
-        } else {
-            Err(WriteError::NoSpaceForRecord)
+        let len = min(self.header.max_msg_len(), available - REC_HEADER_LEN) as usize;
+        let write_res = data.encode_to(&self.df, self.write.reset(write_ptr, len));
+        match write_res {
+            Ok(0) => Err(WriteError::NoSpaceForRecord),
+            Ok(_) => {
+                if !self.write.failed {
+                    let aligned_rec_len = align(self.write.total as u32 + REC_HEADER_LEN);
+                    self.write_metadata(read_head_ptr as *mut u64, self.write.total as u64, aligned_rec_len >> 3);
+                    self.write_offset += aligned_rec_len;
+                    Ok(aligned_rec_len)
+                } else {
+                    Err(WriteError::NoSpaceForRecord)
+                }
+            }
+            Err(io_err) => Err(WriteError::EncodingError(io_err)),
         }
     }
-
+    ///Push a heartbeat message into the channel. Hearbeats are zero sized messages which do not need encoding.
+    ///Reader should never activate callbacks for heartbeat messsages.
+    ///
+    /// Returns RecordHeaderLen, 8 in the current version if the operation succeeds.
+    ///
+    /// # Errors
+    ///
+    /// If the operation fails a *ChannelFull* error will be returned, which signals that the channel will not accept any new messages.
+    ///
     #[allow(clippy::cast_ptr_alignment)]
+    #[inline]
     fn heartbeat(&mut self) -> Result<u32, WriteError> {
         let read_head_ptr = unsafe { self.data_ptr.add(self.write_offset as usize) };
         let available = self.available();
@@ -175,6 +193,7 @@ impl Writer for ShmWriter {
     /// use kekbit_core::shm::*;
     /// use kekbit_core::header::Header;
     /// use kekbit_core::api::Writer;
+    /// use kekbit_codecs::codecs::raw::RawBinDataFormat;
     ///
     /// const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
@@ -183,10 +202,10 @@ impl Writer for ShmWriter {
     /// let max_msg_len = 100;
     /// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-    /// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+    /// let mut writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
     /// let msg = "There are 10 kinds of people: those who know binary and those who don't";
     /// let msg_data = msg.as_bytes();
-    /// writer.write(&msg_data, msg_data.len() as u32).unwrap();
+    /// writer.write(&msg_data).unwrap();
     /// writer.flush().unwrap();
     /// ```
     #[inline]
@@ -195,7 +214,7 @@ impl Writer for ShmWriter {
         self.mmap.flush()
     }
 }
-impl Drop for ShmWriter {
+impl<D: DataFormat> Drop for ShmWriter<D> {
     /// Marks this channel as `closed`, flushes the changes to the disk, and removes the memory mapping.
     fn drop(&mut self) {
         let write_index = self.write_offset;
@@ -215,7 +234,7 @@ impl Drop for ShmWriter {
         }
     }
 }
-impl ShmWriter {
+impl<D: DataFormat> ShmWriter<D> {
     ///Returns the amount of space in this channel still available for write.
     #[inline]
     pub fn available(&self) -> u32 {
@@ -232,9 +251,12 @@ impl ShmWriter {
     pub fn header(&self) -> &Header {
         &self.header
     }
+    #[inline]
+    pub fn data_format(&self) -> &D {
+        &self.df
+    }
 }
 
-#[derive(Debug)]
 struct KekWrite {
     write_ptr: *mut u8,
     max_size: usize,
@@ -274,11 +296,6 @@ impl Write for KekWrite {
             return Ok(0);
         }
         unsafe {
-            // let crt_ptr = if self.total > 0 {
-            //     self.write_ptr.add(self.total as usize)
-            // } else {
-            //     self.write_ptr
-            // };
             let crt_ptr = self.write_ptr.add(self.total as usize);
             copy_nonoverlapping(data.as_ptr(), crt_ptr, data_len);
         }

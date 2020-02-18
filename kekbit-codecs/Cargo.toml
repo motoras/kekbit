@@ -1,27 +1,25 @@
 [package]
-name = "kekbit-core"
-version = "0.2.2"
+name = "kekbit-codecs"
+version = "0.1.0"
 authors = ["motoras <motoras@gmail.com>"]
 edition = "2018"
 license = "MIT"
-description = "Defines the main abstractions and provides the core components required to work with kekbit channels"
+description = "Kekbit channels adapters, that allow to directly write and read data structures into a channel"
 homepage = "https://github.com/motoras/kekbit"
-documentation="https://docs.rs/kekbit-core/0.1.0/kekbit_core/"
 repository="https://github.com/motoras/kekbit/tree/master/kekbit-core"
 keywords = ["lock-free", "data-channel", "persitent-queue", "request-reply"]
 
 [dependencies]
-memmap = "0.7.0"
 log = "0.4.8"
+#serde="1.0.*"
+#serde_json ="1.0.*"
+#serde_derive ="1.0.*"
 
-[dependencies.kekbit-codecs]
-version = "0.1.0"
-path = "../kekbit-codecs"
+
+
+
 
 
 [dev-dependencies]
-tempdir = "0.3.7"
 simple_logger ="1.5.0"
-nix="0.17.0"
-crossbeam ="0.7.3"
 assert_matches="1.3.0"

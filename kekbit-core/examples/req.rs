@@ -3,6 +3,7 @@
 //! a request id, and 2 values which the repliers is suppose to sum them up.
 //! In order to start the requester type cargo run --example req <request_channel_id> <reply_channel_id>
 use crossbeam::utils::Backoff;
+use kekbit_codecs::codecs::raw::RawBinDataFormat;
 use kekbit_core::api::Reader;
 use kekbit_core::api::Writer;
 use kekbit_core::header::Header;
@@ -37,7 +38,7 @@ fn main() {
     let max_msg_size = 1024;
     let header = Header::new(req_id, req_channel_id, max_msg_size * 1000, max_msg_size, timeout_secs, Secs);
     //creates the channel where the requests will be sent together with the associated writer
-    let mut writer = shm_writer(&tmp_dir, &header).unwrap();
+    let mut writer = shm_writer(&tmp_dir, &header, RawBinDataFormat).unwrap();
     //tries to connect to the channel from where the replies will be read
     let reader_rep = try_shm_reader(&tmp_dir, reply_channel_id, 5000, 15);
     if reader_rep.is_err() {
@@ -55,7 +56,7 @@ fn main() {
         msg[0..8].clone_from_slice(&idx.to_le_bytes());
         msg[8..16].clone_from_slice(&(&el.0).to_le_bytes());
         msg[16..24].clone_from_slice(&(&el.1).to_le_bytes());
-        writer.write(&msg, msg.len() as u32).unwrap();
+        writer.write(&msg).unwrap();
         println!("Sent request {} ", i);
         waiting_for.insert(idx);
         backoff.snooze();
