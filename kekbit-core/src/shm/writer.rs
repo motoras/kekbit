@@ -128,7 +128,6 @@ impl<D: DataFormat> Writer<D> for ShmWriter<D> {
     /// ```
     ///
     #[allow(clippy::cast_ptr_alignment)]
-    //#[allow(clippy::unused_io_amount)]
     fn write(&mut self, data: &impl Encodable<D>) -> Result<u32, WriteError> {
         let read_head_ptr = unsafe { self.data_ptr.add(self.write_offset as usize) };
         let write_ptr = unsafe { read_head_ptr.add(REC_HEADER_LEN as usize) };
