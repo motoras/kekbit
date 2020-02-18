@@ -21,17 +21,10 @@ impl DataFormat for PlainTextDataFormat {
     }
 }
 
-impl Encodable<PlainTextDataFormat> for String {
+impl<T: AsRef<str>> Encodable<PlainTextDataFormat> for T {
     #[inline]
     fn encode_to(&self, _format: &PlainTextDataFormat, w: &mut impl Write) -> Result<usize> {
-        w.write(self.as_bytes())
-    }
-}
-
-impl<'a> Encodable<PlainTextDataFormat> for &'a str {
-    #[inline]
-    fn encode_to(&self, _format: &PlainTextDataFormat, w: &mut impl Write) -> Result<usize> {
-        w.write(self.as_bytes())
+        w.write(self.as_ref().as_bytes())
     }
 }
 
