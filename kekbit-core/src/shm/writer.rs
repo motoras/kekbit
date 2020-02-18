@@ -13,7 +13,7 @@ use std::result::Result;
 use std::sync::atomic::Ordering;
 
 /// An implementation of the [Writer](trait.Writer.html) which access a persistent channel through
-/// memory mapping. A `ShmWriter` must be created using the [shm_writer](fn.shm_writer.html) function.
+/// memory mapping, and uses a specific [DataFormat]()(../codecs/trait.DataFormat.html). A `ShmWriter` must be created using the [shm_writer](fn.shm_writer.html) function.
 /// Any `ShmWriter` exclusively holds the channel is bound to, and it is *not thread safe*.
 /// If multiple threads must write into a channel they should be externally synchronized.
 ///
@@ -90,7 +90,7 @@ impl<D: DataFormat> ShmWriter<D> {
 }
 
 impl<D: DataFormat> Writer<D> for ShmWriter<D> {
-    /// Writes a  message into the channel. This operation will copy the message into the channel storage.
+    /// Writes a message into the channel. This operation will encode the data directly into  channel.
     /// While this is a non blocking operation, only one write should be executed at any given time.
     ///
     /// Returns the total amount of bytes wrote into the channel which includes, the size of the message,
@@ -98,16 +98,14 @@ impl<D: DataFormat> Writer<D> for ShmWriter<D> {
     ///
     /// # Arguments
     ///
-    /// *`data` - The buffer which contains the data which is going to be wrote into the channel.
-    /// * `len` - The amount of data which is going to be wrote into to he channel
+    /// *`data` - The  data which to encode and  write into the channel.
     ///
     /// # Errors
     ///
-    /// Two types of [failures](enum.WriteError.html) may occur: message size is larger than the maximum allowed,
-    /// or the there is not enough space in the channel to write that message. In the second case, a future write may succeed,
-    /// if the message has a smaller size that the current one.
+    /// Two kinds of [failures](enum.WriteError.html) may occur. One if the encoding operation failed, the other if the channel
+    /// rejected the message for reasons such data is too large or no space is available in the channel.
     ///
-    ////// # Examples
+    /// # Examples
     ///
     /// ```
     /// use kekbit_core::tick::TickUnit::Nanos;
@@ -154,7 +152,14 @@ impl<D: DataFormat> Writer<D> for ShmWriter<D> {
             Err(io_err) => Err(WriteError::EncodingError(io_err)),
         }
     }
-
+    ///Push a heartbeat message into the channel. Hearbeats are zero sized messages which do not need encoding.
+    ///Reader should never activate callbacks for heartbeat messsages. 	
+    ///
+    /// Returns Ok(RecordHeaderLen) (8 in the current case) if the operation succeeds.
+    ///
+    ///	# Errors				
+    ///
+    /// If the operation fails a *ChannelFull* error will be returned, which signals that the channel will not accept any new messages.
     #[allow(clippy::cast_ptr_alignment)]
     fn heartbeat(&mut self) -> Result<u32, WriteError> {
         let read_head_ptr = unsafe { self.data_ptr.add(self.write_offset as usize) };
@@ -250,7 +255,6 @@ impl<D: DataFormat> ShmWriter<D> {
     }
 }
 
-#[derive(Debug)]
 struct KekWrite {
     write_ptr: *mut u8,
     max_size: usize,

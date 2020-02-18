@@ -97,15 +97,15 @@ pub trait Writer<D: DataFormat> {
     /// which want to respect to timeout interval associated to a channel. Hearbeating is the
     /// expected mechanism by which a channel writer will keep the active readers interested in
     /// the data published on the channel.
-    /// Heartbeat shall be done regularly, at a time interval which ensures that at least one heartbeat
+    /// Heartbeat shall be done regularly at a time interval which ensures that at least one heartbeat
     /// is sent between any two 'timeout' long intervals.
     ///
     /// Returns the total amount of bytes wrote into the channel or a `WriteError` if the write operation fails.
     ///
     /// # Errors
     ///
-    /// If this call fails, than an error variant will be returned. However in this case the errors are not recoverable,
-    ///  they signal that the channel is at the  end of its lifetime.    
+    /// If this call fails than an error variant will be returned. The errors are not recoverable,
+    /// they signal that the channel had reached the end of its lifetime.
     fn heartbeat(&mut self) -> Result<u32, WriteError>;
 
     /// Flushes the stream which possibly backs the kekbit writer.
