@@ -7,7 +7,7 @@ use crate::version::Version;
 use std::cmp::max;
 use std::cmp::min;
 
-const MIN_CAPACITY: u32 = 1024 * 10;
+const MIN_CAPACITY: u32 = 1024 * 16;
 const HEADER_LEN: usize = 128;
 const SIGNATURE: u64 = 0x2A54_4942_4B45_4B2A; //"*KEKBIT*" as bytes as u64
 

@@ -4,6 +4,7 @@ use crate::header::Header;
 use crate::utils::{align, store_atomic_u64, CLOSE, REC_HEADER_LEN, WATERMARK};
 use log::{debug, error, info};
 use memmap::MmapMut;
+use std::cmp::min;
 use std::io::Write;
 use std::ptr::copy_nonoverlapping;
 use std::result::Result;
@@ -31,12 +32,12 @@ use std::sync::atomic::Ordering;
 /// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
 /// writer.heartbeat().unwrap();
 /// ```
-#[derive(Debug)]
 pub struct ShmWriter {
     header: Header,
     data_ptr: *mut u8,
     write_offset: u32,
     mmap: MmapMut,
+    write: KekWrite,
 }
 
 impl ShmWriter {
@@ -47,11 +48,13 @@ impl ShmWriter {
         let header_ptr = buf.as_ptr() as *mut u64;
         let head_len = header.len();
         let data_ptr = unsafe { header_ptr.add(head_len) } as *mut u8;
+        let write = KekWrite::new(data_ptr, header.max_msg_len() as usize);
         let mut writer = ShmWriter {
             header,
             data_ptr,
             write_offset: 0,
             mmap,
+            write,
         };
         info!(
             "Kekbit channel writer created. Size is {}MB. Max msg size {}KB",
@@ -73,6 +76,7 @@ impl ShmWriter {
     #[inline(always)]
     fn write_metadata(&mut self, write_ptr: *mut u64, len: u64, aligned_rec_len: u32) {
         unsafe {
+            //we should always have the 8 bytes required by WATERMARK as they are acounted in the Footer
             store_atomic_u64(write_ptr.add(aligned_rec_len as usize), WATERMARK, Ordering::Release);
         }
         store_atomic_u64(write_ptr, len, Ordering::Release);
@@ -118,29 +122,38 @@ impl Writer for ShmWriter {
     /// writer.write(&msg_data, msg_data.len() as u32).unwrap();
     /// ```
     #[allow(clippy::cast_ptr_alignment)]
-    fn write(&mut self, data: &[u8], len: u32) -> Result<u32, WriteError> {
-        if len > self.header.max_msg_len() {
-            return Err(WriteError::MaxRecordLenExceed {
-                rec_len: len,
-                max_allowed: self.header.max_msg_len(),
-            });
+    fn write(&mut self, data: &[u8], _len: u32) -> Result<u32, WriteError> {
+        let read_head_ptr = unsafe { self.data_ptr.add(self.write_offset as usize) };
+        let write_ptr = unsafe { read_head_ptr.add(REC_HEADER_LEN as usize) };
+        let available = self.available();
+        if available <= REC_HEADER_LEN {
+            return Err(WriteError::ChannelFull);
         }
-        let aligned_rec_len = align(len + REC_HEADER_LEN);
-        let avl = self.available();
-        if aligned_rec_len > avl {
-            return Err(WriteError::NoSpaceAvailable {
-                required: aligned_rec_len,
-                left: avl,
-            });
+        let alen = min(self.header.max_msg_len(), available - REC_HEADER_LEN) as usize;
+        //self.encoder.encode(data, self.write.reset(write_ptr, len));
+        self.write.reset(write_ptr, alen);
+        self.write.write(data).unwrap();
+        if !self.write.failed {
+            let aligned_rec_len = align(self.write.total as u32 + REC_HEADER_LEN);
+            self.write_metadata(read_head_ptr as *mut u64, self.write.total as u64, aligned_rec_len >> 3);
+            self.write_offset += aligned_rec_len;
+            Ok(aligned_rec_len)
+        } else {
+            Err(WriteError::NoSpaceForRecord)
         }
-        let write_index = self.write_offset;
-        unsafe {
-            let write_ptr = self.data_ptr.offset(write_index as isize);
-            copy_nonoverlapping(data.as_ptr(), write_ptr.add(REC_HEADER_LEN as usize) as *mut u8, len as usize);
-            self.write_metadata(write_ptr as *mut u64, len as u64, aligned_rec_len >> 3);
+    }
+
+    #[allow(clippy::cast_ptr_alignment)]
+    fn heartbeat(&mut self) -> Result<u32, WriteError> {
+        let read_head_ptr = unsafe { self.data_ptr.add(self.write_offset as usize) };
+        let available = self.available();
+        if available <= REC_HEADER_LEN {
+            return Err(WriteError::ChannelFull);
         }
+        let aligned_rec_len = REC_HEADER_LEN; //no need to align REC_HEADER)LEN must be align
+        self.write_metadata(read_head_ptr as *mut u64, 0u64, aligned_rec_len >> 3);
         self.write_offset += aligned_rec_len;
-        Ok(aligned_rec_len as u32)
+        Ok(aligned_rec_len)
     }
 
     /// Flushes the channel's outstanding memory map modifications to disk. Calling  this method explicitly
@@ -188,6 +201,7 @@ impl Drop for ShmWriter {
         info!("Closing message queue..");
         unsafe {
             #[allow(clippy::cast_ptr_alignment)]
+            //we should always have the 8 bytes required by CLOSE as they are acounted in the Footer
             let write_ptr = self.data_ptr.offset(write_index as isize) as *mut u64;
             store_atomic_u64(write_ptr, CLOSE, Ordering::Release);
             info!("Closing message sent")
@@ -201,10 +215,10 @@ impl Drop for ShmWriter {
     }
 }
 impl ShmWriter {
-    ///Returns the amount of space still available into this channel.
+    ///Returns the amount of space in this channel still available for write.
     #[inline]
     pub fn available(&self) -> u32 {
-        self.header.capacity() - self.write_offset
+        (self.header.capacity() - self.write_offset) & 0xFFFF_FFF8 //rounded down to alignement
     }
     ///Returns the amount of data written into this channel.
     #[inline]
@@ -219,6 +233,7 @@ impl ShmWriter {
     }
 }
 
+#[derive(Debug)]
 struct KekWrite {
     write_ptr: *mut u8,
     max_size: usize,
@@ -228,7 +243,7 @@ struct KekWrite {
 
 impl KekWrite {
     #[inline]
-    fn new(write_ptr: *mut u8, max_size: usize) -> KekWrite {
+    fn new(write_ptr: *mut u8, max_size: usize) -> Self {
         KekWrite {
             write_ptr,
             max_size,
@@ -237,20 +252,24 @@ impl KekWrite {
         }
     }
     #[inline]
-    fn reset(&mut self, write_ptr: *mut u8, max_size: usize) {
+    fn reset(&mut self, write_ptr: *mut u8, max_size: usize) -> &mut Self {
         self.write_ptr = write_ptr;
         self.max_size = max_size;
         self.total = 0;
         self.failed = false;
+        self
     }
 }
 
 impl Write for KekWrite {
     #[inline]
     fn write(&mut self, data: &[u8]) -> Result<usize, std::io::Error> {
+        if self.failed {
+            return Ok(0);
+        }
         let data_len = data.len();
-        if self.total + data_len > self.max_size || self.failed {
-            self.failed |= true;
+        if self.total + data_len > self.max_size {
+            self.failed = true;
             return Ok(0);
         }
         unsafe {
