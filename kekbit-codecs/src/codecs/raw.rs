@@ -29,21 +29,6 @@ impl<T: AsRef<[u8]>> Encodable<RawBinDataFormat> for T {
     }
 }
 
-// impl<'a> Encodable<RawBinDataFormat> for &'a [u8] {
-//     #[inline]
-//     fn encode_to(&self, _format: &RawBinDataFormat, w: &mut impl Write) -> Result<usize> {
-//         w.write(self)
-//     }
-// }
-
-//Will see if this is need it or just a basic nice to have
-//use std::io::Read;
-// impl<'a> Encodable<RawBinDataFormat> for &'a Read {
-//     fn encode_to(&mut self, _format: &RawBinDataFormat, w: &mut impl Write) {
-//         std::io::copy(&mut self, w).unwrap();
-//     }
-// }
-
 #[cfg(test)]
 mod test {
     use super::*;
