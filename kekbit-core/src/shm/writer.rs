@@ -138,15 +138,20 @@ impl<D: DataFormat> Writer<D> for ShmWriter<D> {
             return Err(WriteError::ChannelFull);
         }
         let len = min(self.header.max_msg_len(), available - REC_HEADER_LEN) as usize;
-        let total = data.encode_to(&self.df, self.write.reset(write_ptr, len)).unwrap();
-        //TODO add error handling, return some EncodingError
-        if total > 0 && !self.write.failed {
-            let aligned_rec_len = align(self.write.total as u32 + REC_HEADER_LEN);
-            self.write_metadata(read_head_ptr as *mut u64, self.write.total as u64, aligned_rec_len >> 3);
-            self.write_offset += aligned_rec_len;
-            Ok(aligned_rec_len)
-        } else {
-            Err(WriteError::NoSpaceForRecord)
+        let write_res = data.encode_to(&self.df, self.write.reset(write_ptr, len));
+        match write_res {
+            Ok(0) => Err(WriteError::NoSpaceForRecord),
+            Ok(_) => {
+                if !self.write.failed {
+                    let aligned_rec_len = align(self.write.total as u32 + REC_HEADER_LEN);
+                    self.write_metadata(read_head_ptr as *mut u64, self.write.total as u64, aligned_rec_len >> 3);
+                    self.write_offset += aligned_rec_len;
+                    Ok(aligned_rec_len)
+                } else {
+                    Err(WriteError::NoSpaceForRecord)
+                }
+            }
+            Err(io_err) => Err(WriteError::EncodingError(io_err)),
         }
     }
 
@@ -285,11 +290,6 @@ impl Write for KekWrite {
             return Ok(0);
         }
         unsafe {
-            // let crt_ptr = if self.total > 0 {
-            //     self.write_ptr.add(self.total as usize)
-            // } else {
-            //     self.write_ptr
-            // };
             let crt_ptr = self.write_ptr.add(self.total as usize);
             copy_nonoverlapping(data.as_ptr(), crt_ptr, data_len);
         }

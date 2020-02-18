@@ -1,8 +1,9 @@
 //! Defines read and write operations for a kekbit channel.
 use kekbit_codecs::codecs::DataFormat;
 use kekbit_codecs::codecs::Encodable;
+use std::io::Error;
 ///Channel Access errors
-#[derive(Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Debug)]
 pub enum ChannelError {
     ///The channel has an invalid signature. The channel signature must be `0x2A54_4942_4B45_4B2A`
     InvalidSignature {
@@ -64,20 +65,20 @@ pub enum ChannelError {
 }
 
 ///Write operation errors
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Debug)]
 pub enum WriteError {
     ///There is not enough space available in the channel for any write. The channel is full.
     ChannelFull,
     /// The record was larger than the maximum allowed size or the maximum available space.
     NoSpaceForRecord,
     /// The encoding operation had failed
-    EncodingError,
+    EncodingError(Error),
 }
 
 ///The `Writer` trait allows writing chunk of bytes as records into a kekbit channel.
 /// Implementers of this trait are called 'kekbit writers'. Usually a writer is bound to
 /// a given channel, and it is expected that there is only one writer which directly writes into the channel, however
-/// multiple writers may cooperate during the writing process.
+/// multiple writers may cooperate during the writing process. For any given channel a  [DataFormat](../codecs/trait.DataFormat.html) must be specified.
 pub trait Writer<D: DataFormat> {
     /// Writes a given record to a kekbit channel.
     ///
@@ -85,14 +86,12 @@ pub trait Writer<D: DataFormat> {
     ///
     /// # Arguments
     ///
-    /// * `data` - The buffer which contains the record data to be written.
-    /// * `len` - The amount of data to be write in the channel, the record length.
+    /// * `data` - information to be encoded and pushed into channel.
     ///
     /// # Errors
     ///
-    /// If the operation fails, than an error variant will be returned.
-    /// Regardless the error variant a future write with a smaller record size may be successful.
-    ///
+    /// If the operation fails, than an error variant will be returned. Some errors such [EncodingError or NoSpaceForRecord](enum.WriteError.html) may
+    /// allow future writes to succeed while others such [ChannelFull](enum.WriteError.html#ChannelFull) signals the end of life for the channel.
     fn write(&mut self, data: &impl Encodable<D>) -> Result<u32, WriteError>;
     /// Writes into the stream a heartbeat message. This method shall be used by all writers
     /// which want to respect to timeout interval associated to a channel. Hearbeating is the
@@ -105,14 +104,12 @@ pub trait Writer<D: DataFormat> {
     ///
     /// # Errors
     ///
-    /// If this call fails, than an error variant will be returned. However
-    /// in this case the errors are not recoverable, they signal that the channel is at the
-    /// end of its lifetime.    
+    /// If this call fails, than an error variant will be returned. However in this case the errors are not recoverable,
+    ///  they signal that the channel is at the  end of its lifetime.    
     fn heartbeat(&mut self) -> Result<u32, WriteError>;
 
     /// Flushes the stream which possibly backs the kekbit writer.
-    /// By default this method does nothing, and should be implemented only for `Writer`s which
-    /// it makes sense.
+    /// By default this method does nothing, and should be implemented only for `Writer`s which it makes sense.
     /// Returns the success of the operation
     fn flush(&mut self) -> Result<(), std::io::Error> {
         Ok(())
@@ -144,7 +141,7 @@ pub enum ReadError {
     },
 }
 ///Errors caused by failed [move_to](trait.Reader.html#method.move_to) operation.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Debug)]
 pub enum InvalidPosition {
     ///Position is not properly aligned with the channel's records
     Unaligned { position: u32 },
