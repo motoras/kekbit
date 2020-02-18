@@ -7,9 +7,11 @@ data formats  using this traits.
 ## Data formats provided
 
 ### [Raw Binary](https://github.com/motoras/kekbit/blob/master/kekbit-codecs/src/codecs/raw.rs)
-    A data format which simply writes raw bytes into the channel whithout any regard of the underlying data's structure
+
+A data format which simply writes raw bytes into the channel whithout any regard of the structure of the underlying data.
 	
 ### [Plain Text](https://github.com/motoras/kekbit/blob/master/kekbit-codecs/src/codecs/text.rs)
+   
    An unstructured text format. Applications which just want to exchange plain text(such as chat clients or a text file transmission protocol) may
  use this format. It is also a good format for testing.
 
