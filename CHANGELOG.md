@@ -6,7 +6,15 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Create the new codecs subcrate
-- Provide the first iteration of the data format and encoding traits
+- First iteration for the DataFormat and Encodable traits
+- RawBinDataFormat for opaque binary data
+- PlainTextDataFormat for text data
+
+## Changed
+- Writer has now a DataFormat type parameter
+- The *write* method from writer requires an Encodable parameter, and got rid of the byte slice and len parameters
+- Chat example was fixed, and is now ready to be published
+
 
 ### Fixed
 - ShmWriter will try to write one more record than space available
