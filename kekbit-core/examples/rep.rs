@@ -68,7 +68,7 @@ fn main() {
                 let mut reply: [u8; 16] = [0; 16];
                 reply[0..8].clone_from_slice(&id.to_le_bytes());
                 reply[8..16].clone_from_slice(&res.to_le_bytes());
-                writer.write(&reply, reply.len() as u32).unwrap();
+                writer.write(&reply).unwrap();
                 println!("Reply for {} sent", id);
             },
             5,

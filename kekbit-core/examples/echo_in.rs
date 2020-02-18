@@ -30,7 +30,7 @@ fn main() {
             last_msg_time = ts;
         }
         let data = input.trim().as_bytes();
-        writer.write(&data, data.len() as u32).unwrap();
+        writer.write(&data).unwrap();
         if input.trim() == "Bye".to_string() {
             println!("Exiting.....");
             break;

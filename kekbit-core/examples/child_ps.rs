@@ -38,8 +38,7 @@ pub fn run_writer() -> Result<(), ()> {
         //         }
         //     }
         // }
-        let len = msg_bytes.len() as u32;
-        let res = writer.write(&msg_bytes, len);
+        let res = writer.write(&msg_bytes);
         match res {
             Ok(b) => {
                 total += b;

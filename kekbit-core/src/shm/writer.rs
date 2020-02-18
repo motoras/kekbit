@@ -3,6 +3,7 @@ use crate::api::{ChannelError, WriteError, Writer};
 use crate::header::Header;
 use crate::utils::{align, store_atomic_u64, CLOSE, REC_HEADER_LEN, WATERMARK};
 use kekbit_codecs::codecs::DataFormat;
+use kekbit_codecs::codecs::Encodable;
 use log::{debug, error, info};
 use memmap::MmapMut;
 use std::cmp::min;
@@ -88,7 +89,7 @@ impl<D: DataFormat> ShmWriter<D> {
     }
 }
 
-impl<D: DataFormat> Writer for ShmWriter<D> {
+impl<D: DataFormat> Writer<D> for ShmWriter<D> {
     /// Writes a  message into the channel. This operation will copy the message into the channel storage.
     /// While this is a non blocking operation, only one write should be executed at any given time.
     ///
@@ -125,21 +126,20 @@ impl<D: DataFormat> Writer for ShmWriter<D> {
     /// let mut writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
     /// let msg = "There are 10 kinds of people: those who know binary and those who don't";
     /// let msg_data = msg.as_bytes();
-    /// writer.write(&msg_data, msg_data.len() as u32).unwrap();
+    /// writer.write(&msg_data).unwrap();
     /// ```
     #[allow(clippy::cast_ptr_alignment)]
     #[allow(clippy::unused_io_amount)]
-    fn write(&mut self, data: &[u8], _len: u32) -> Result<u32, WriteError> {
+    fn write(&mut self, data: &impl Encodable<D>) -> Result<u32, WriteError> {
         let read_head_ptr = unsafe { self.data_ptr.add(self.write_offset as usize) };
         let write_ptr = unsafe { read_head_ptr.add(REC_HEADER_LEN as usize) };
         let available = self.available();
         if available <= REC_HEADER_LEN {
             return Err(WriteError::ChannelFull);
         }
-        let alen = min(self.header.max_msg_len(), available - REC_HEADER_LEN) as usize;
-        //self.encoder.encode(data, self.write.reset(write_ptr, len));
-        self.write.reset(write_ptr, alen);
-        let total = self.write.write(data).unwrap(); //this will cahnge to encoder
+        let len = min(self.header.max_msg_len(), available - REC_HEADER_LEN) as usize;
+        let total = data.encode_to(&self.df, self.write.reset(write_ptr, len)).unwrap();
+        //TODO add error handling, return some EncodingError
         if total > 0 && !self.write.failed {
             let aligned_rec_len = align(self.write.total as u32 + REC_HEADER_LEN);
             self.write_metadata(read_head_ptr as *mut u64, self.write.total as u64, aligned_rec_len >> 3);
@@ -193,7 +193,7 @@ impl<D: DataFormat> Writer for ShmWriter<D> {
     /// let mut writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
     /// let msg = "There are 10 kinds of people: those who know binary and those who don't";
     /// let msg_data = msg.as_bytes();
-    /// writer.write(&msg_data, msg_data.len() as u32).unwrap();
+    /// writer.write(&msg_data).unwrap();
     /// writer.flush().unwrap();
     /// ```
     #[inline]

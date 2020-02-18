@@ -1,5 +1,6 @@
 //! Defines read and write operations for a kekbit channel.
-
+use kekbit_codecs::codecs::DataFormat;
+use kekbit_codecs::codecs::Encodable;
 ///Channel Access errors
 #[derive(Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ChannelError {
@@ -67,28 +68,17 @@ pub enum ChannelError {
 pub enum WriteError {
     ///There is not enough space available in the channel for any write. The channel is full.
     ChannelFull,
-    NoSpaceAvailable {
-        ///The space amount required by the record. It will be larger than the record size.
-        required: u32,
-        ///The space amount available in the channel.
-        left: u32,
-    },
     /// The record was larger than the maximum allowed size or the maximum available space.
     NoSpaceForRecord,
-    /// The record was longer than the maximum allowed.
-    MaxRecordLenExceed {
-        ///The size of the record to be written.
-        rec_len: u32,
-        ///The maximum allowed size for a record.
-        max_allowed: u32,
-    },
+    /// The encoding operation had failed
+    EncodingError,
 }
 
 ///The `Writer` trait allows writing chunk of bytes as records into a kekbit channel.
 /// Implementers of this trait are called 'kekbit writers'. Usually a writer is bound to
 /// a given channel, and it is expected that there is only one writer which directly writes into the channel, however
 /// multiple writers may cooperate during the writing process.
-pub trait Writer {
+pub trait Writer<D: DataFormat> {
     /// Writes a given record to a kekbit channel.
     ///
     /// Returns the total amount of bytes wrote into the channel or a `WriteError` if the write operation fails.
@@ -103,7 +93,7 @@ pub trait Writer {
     /// If the operation fails, than an error variant will be returned.
     /// Regardless the error variant a future write with a smaller record size may be successful.
     ///
-    fn write(&mut self, data: &[u8], len: u32) -> Result<u32, WriteError>;
+    fn write(&mut self, data: &impl Encodable<D>) -> Result<u32, WriteError>;
     /// Writes into the stream a heartbeat message. This method shall be used by all writers
     /// which want to respect to timeout interval associated to a channel. Hearbeating is the
     /// expected mechanism by which a channel writer will keep the active readers interested in

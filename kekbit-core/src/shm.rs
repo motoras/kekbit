@@ -279,7 +279,7 @@ mod test {
         for m in msgs {
             let to_wr = m.as_bytes();
             let len = to_wr.len() as u32;
-            let size = writer.write(&to_wr, len).unwrap();
+            let size = writer.write(&to_wr).unwrap();
             assert_eq!(size, align(len + REC_HEADER_LEN));
             bytes_written += size;
             msg_count += 1;
@@ -326,7 +326,7 @@ mod test {
         for m in msgs {
             let to_wr = m.as_bytes();
             let len = to_wr.len() as u32;
-            let size = writer.write(&to_wr, len).unwrap();
+            let size = writer.write(&to_wr).unwrap();
             assert_eq!(size, align(len + REC_HEADER_LEN));
             msg_count += 1;
         }
@@ -354,7 +354,7 @@ mod test {
         for m in msgs {
             let to_wr = m.as_bytes();
             let len = to_wr.len() as u32;
-            let size = writer.write(&to_wr, len).unwrap();
+            let size = writer.write(&to_wr).unwrap();
             assert_eq!(size, align(len + REC_HEADER_LEN));
             msg_count += 1;
         }
@@ -403,8 +403,7 @@ mod test {
         let msgs = txt.split_whitespace();
         for m in msgs {
             let to_wr = m.as_bytes();
-            let len = to_wr.len() as u32;
-            writer.write(&to_wr, len).unwrap();
+            writer.write(&to_wr).unwrap();
         }
         let mut reader = shm_reader(&test_tmp_dir.path(), 1000).unwrap();
         reader.move_to(8).unwrap(); //skip  heartbeat

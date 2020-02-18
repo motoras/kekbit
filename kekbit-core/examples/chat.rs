@@ -19,8 +19,8 @@ fn run_writer(your_id: u64, channel_id: u64, run: Arc<AtomicBool>) {
     while run.load(Ordering::Relaxed) == true {
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).expect("Failed read");
-        let data = input.trim().as_bytes();
-        writer.write(&data, data.len() as u32).unwrap();
+        let data = input.trim();
+        writer.write(&data).unwrap();
         if input.trim() == "Bye".to_string() {
             println!("Sent Bye. Exiting.....");
             run.store(false, Ordering::Relaxed);

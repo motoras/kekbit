@@ -56,7 +56,7 @@ fn main() {
         msg[0..8].clone_from_slice(&idx.to_le_bytes());
         msg[8..16].clone_from_slice(&(&el.0).to_le_bytes());
         msg[16..24].clone_from_slice(&(&el.1).to_le_bytes());
-        writer.write(&msg, msg.len() as u32).unwrap();
+        writer.write(&msg).unwrap();
         println!("Sent request {} ", i);
         waiting_for.insert(idx);
         backoff.snooze();
