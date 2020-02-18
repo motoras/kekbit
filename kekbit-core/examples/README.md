@@ -48,7 +48,7 @@ To avoid unspecified behaviour before reruning the sample, you should either del
 
 
 ## Chat
-This is a more complete version of the echo application. Two users will start each one an instance of the [chat application]((https://github.com/motoras/kekbit/blob/master/kekbit-core/examples/chat.rs)), and will be able to exchange messages by typing them into the console. In a more complex scenario you could have a chain of users talking, each reading from a channel and writing in a different one. 
+This is a more complete version of the echo application. Two users will start each one an instance of the [chat application](https://github.com/motoras/kekbit/blob/master/kekbit-core/examples/chat.rs), and will be able to exchange messages by typing them into the console. In a more complex scenario you could have a chain of users talking, each reading from a channel and writing in a different one. 
 The *Bye* message will stop the conversation.
 
 In order to start a caht instance, in the kekbit_core folder type:
