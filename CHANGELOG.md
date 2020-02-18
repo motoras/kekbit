@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [0.2.2] In Development
 
+### Fixed
+- ShmWriter will try to write one more record than space available
+
 ## [0.2.1] 2020-02-14
 
 ### Added
@@ -11,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - Position parameter to the reader callback. This change will break code written with versions <= 0.1.1
 - ShmReader's *total_read* method was renamed *position*
 - Method move_to for the Reader traits, so it can resume work from a previous session, or skip records
+
 
 ## [0.1.1] 2020-02-11
 
