@@ -1,3 +1,5 @@
+//! A chat sample which allows multiple instacnes to communicate
+//! by writing/reading messages from the console.
 use kekbit_codecs::codecs::text::PlainTextDataFormat;
 use kekbit_core::api::{Reader, Writer};
 use kekbit_core::header::Header;
@@ -75,8 +77,8 @@ fn run_reader(channel_id: u64, run: Arc<AtomicBool>) {
 pub fn main() {
     let args: Vec<u64> = std::env::args().skip(1).map(|id| id.parse().unwrap()).collect();
     assert!(args.len() == 2);
-    let your_channel_id = args[0];
-    let other_channel_id = args[1];
+    let your_channel_id = args[0]; //channel where you will write messages
+    let other_channel_id = args[1]; //channel from where you will read messages
     let run = Arc::new(AtomicBool::new(true));
     let run_w = run.clone();
     let run_r = run.clone();
