@@ -18,7 +18,7 @@ pub trait Encodable<D: DataFormat> {
     /// # Errors
     ///
     /// If the encoding fails or an IO erorr occurs.
-    fn encode_to(&self, d: &D, w: &mut impl Write) -> Result<usize>;
+    fn encode(&self, d: &D, w: &mut impl Write) -> Result<usize>;
 }
 
 ///Any type wich can be decoded from a u8 slice in the specified data format

@@ -25,7 +25,7 @@ impl DataFormat for PlainTextDataFormat {
 
 impl<T: AsRef<str>> Encodable<PlainTextDataFormat> for T {
     #[inline]
-    fn encode_to(&self, _format: &PlainTextDataFormat, w: &mut impl Write) -> Result<usize> {
+    fn encode(&self, _format: &PlainTextDataFormat, w: &mut impl Write) -> Result<usize> {
         w.write(self.as_ref().as_bytes())
     }
 }
@@ -48,9 +48,9 @@ mod test {
         let mut cursor = Cursor::new(&mut vec);
         let df = PlainTextDataFormat;
         let msg = "They are who we thought they are";
-        msg.encode_to(&df, &mut cursor).unwrap();
+        msg.encode(&df, &mut cursor).unwrap();
         assert_eq!(cursor.position() as usize, msg.len());
-        msg.to_string().encode_to(&df, &mut cursor).unwrap();
+        msg.to_string().encode(&df, &mut cursor).unwrap();
         assert_eq!(cursor.position() as usize, 2 * msg.len());
     }
 
@@ -66,7 +66,7 @@ mod test {
         let mut cursor = Cursor::new(&mut vec);
         let df = PlainTextDataFormat;
         let enc_msg = "They are who we thought they are";
-        enc_msg.encode_to(&df, &mut cursor).unwrap();
+        enc_msg.encode(&df, &mut cursor).unwrap();
         let dec_msg = String::decode(&df, &vec).unwrap();
         assert_eq!(enc_msg, dec_msg);
     }

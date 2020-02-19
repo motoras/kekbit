@@ -25,7 +25,7 @@ impl DataFormat for RawBinDataFormat {
 
 impl<T: AsRef<[u8]>> Encodable<RawBinDataFormat> for T {
     #[inline]
-    fn encode_to(&self, _format: &RawBinDataFormat, w: &mut impl Write) -> Result<usize> {
+    fn encode(&self, _format: &RawBinDataFormat, w: &mut impl Write) -> Result<usize> {
         w.write(self.as_ref())
     }
 }
@@ -49,7 +49,7 @@ mod test {
         let mut cursor = Cursor::new(&mut vec);
         let msg = &[1u8; 10][..];
         let df = RawBinDataFormat;
-        msg.encode_to(&df, &mut cursor).unwrap();
+        msg.encode(&df, &mut cursor).unwrap();
         assert_eq!(cursor.position() as usize, msg.len());
         cursor.set_position(0);
         let expected = &mut [11u8; 10][..];
@@ -68,7 +68,7 @@ mod test {
         let mut cursor = Cursor::new(&mut vec);
         let enc_msg = &[1u8; 10][..];
         let df = RawBinDataFormat;
-        enc_msg.encode_to(&df, &mut cursor).unwrap();
+        enc_msg.encode(&df, &mut cursor).unwrap();
         let dec_msg = &Vec::decode(&df, &vec).unwrap()[..];
         assert_eq!(enc_msg, dec_msg);
     }

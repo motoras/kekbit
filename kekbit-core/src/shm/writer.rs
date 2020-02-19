@@ -136,7 +136,7 @@ impl<D: DataFormat> Writer<D> for ShmWriter<D> {
             return Err(WriteError::ChannelFull);
         }
         let len = min(self.header.max_msg_len(), available - REC_HEADER_LEN) as usize;
-        let write_res = data.encode_to(&self.df, self.write.reset(write_ptr, len));
+        let write_res = data.encode(&self.df, self.write.reset(write_ptr, len));
         match write_res {
             Ok(0) => Err(WriteError::NoSpaceForRecord),
             Ok(_) => {
