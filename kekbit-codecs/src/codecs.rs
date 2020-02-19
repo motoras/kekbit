@@ -13,11 +13,13 @@ pub trait DataFormat {
 
 ///An entity which can be written in a channel using the specified data format
 pub trait Encodable<D: DataFormat> {
-    ///Encodes an object on the spcified data format into a `Write`
+    ///Encodes an object on the spcified data format into a `Write`. If during
+    ///the encoding operation an IO error occurs the operation should be cancelled.
+    ///
     ///
     /// # Errors
     ///
-    /// If the encoding fails or an IO erorr occurs.
+    /// If the encoding fails or an IO error occurs.
     fn encode(&self, d: &D, w: &mut impl Write) -> Result<usize>;
 }
 
