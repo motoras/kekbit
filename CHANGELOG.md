@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+
+## [0.2.4] In development
+
+### Added
+- Decodable trait
+- Decodable support for RawBinDataFormat and PlainTextDataFormat
+
+### Changed
+- Error handling in ShmWriter
+- Encodable trait returns Result
+
+
+## [0.2.3] 2020-02-18
+
+### Changed
+- Minor fixes in crates related metadata
+
 ## [0.2.2] 2020-02-18
 
 ### Added
@@ -10,7 +27,7 @@ All notable changes to this project will be documented in this file.
 - RawBinDataFormat for opaque binary data
 - PlainTextDataFormat for text data
 
-## Changed
+### Changed
 - Writer has now a DataFormat type parameter
 - The *write* method from writer requires an Encodable parameter, and got rid of the byte slice and len parameters
 - Chat example was fixed, and is now ready to be published
