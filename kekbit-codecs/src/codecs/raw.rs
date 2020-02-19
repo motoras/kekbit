@@ -1,4 +1,5 @@
 use crate::codecs::DataFormat;
+use crate::codecs::Decodable;
 use crate::codecs::Encodable;
 use std::io::Result;
 use std::io::Write;
@@ -29,6 +30,13 @@ impl<T: AsRef<[u8]>> Encodable<RawBinDataFormat> for T {
     }
 }
 
+impl<'a, T: From<&'a [u8]>> Decodable<'a, RawBinDataFormat, T> for T {
+    #[inline]
+    fn decode(_d: &RawBinDataFormat, data: &'a [u8]) -> Result<T> {
+        Ok(data.into())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -52,5 +60,16 @@ mod test {
     fn check_data_format() {
         assert_eq!(RawBinDataFormat::id(), ID);
         assert_eq!(RawBinDataFormat::media_type(), MEDIA_TYPE);
+    }
+
+    #[test]
+    fn encode_decode() {
+        let mut vec = Vec::<u8>::new();
+        let mut cursor = Cursor::new(&mut vec);
+        let enc_msg = &[1u8; 10][..];
+        let df = RawBinDataFormat;
+        enc_msg.encode_to(&df, &mut cursor).unwrap();
+        let dec_msg = &Vec::decode(&df, &vec).unwrap()[..];
+        assert_eq!(enc_msg, dec_msg);
     }
 }
