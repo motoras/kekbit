@@ -28,9 +28,10 @@ A set of mean, lean and composable components for working with ultralight **pers
 * Readers are components which poll data from a channel. Multiple readers could read at any given time from a channel, at their own pace, so the data available in the channel could be consumend multiple times, and in paralel by various readers.
 
 #### Codecs
-* Various data formats are available
-* [Raw bytes](https://docs.rs/kekbit/*/kekbit/codecs/struct.RawBinDataFormat.html) and [plain text](https://docs.rs/kekbit/*/kekbit/codecs/struct.PlainTextDataFormat.htmll) are the simplest ones
+* Dara could be stored in any format
+* [Raw bytes](https://docs.rs/kekbit/*/kekbit/codecs/struct.RawBinDataFormat.html) and [plain text](https://docs.rs/kekbit/*/kekbit/codecs/struct.PlainTextDataFormat.htmll) are the default formats provided
 * More complex(JSON, RON) serde-based ones are in development
+* Appplication specific data formats could be plugged in 
 
 
 ## Components
