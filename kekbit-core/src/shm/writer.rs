@@ -7,6 +7,8 @@ use kekbit_codecs::codecs::Encodable;
 use log::{debug, error, info};
 use memmap::MmapMut;
 use std::cmp::min;
+use std::io::Error;
+use std::io::ErrorKind::WriteZero;
 use std::io::Write;
 use std::ptr::copy_nonoverlapping;
 use std::result::Result;
@@ -136,9 +138,8 @@ impl<D: DataFormat> Writer<D> for ShmWriter<D> {
             return Err(WriteError::ChannelFull);
         }
         let len = min(self.header.max_msg_len(), available - REC_HEADER_LEN) as usize;
-        let write_res = data.encode_to(&self.df, self.write.reset(write_ptr, len));
+        let write_res = data.encode(&self.df, self.write.reset(write_ptr, len));
         match write_res {
-            Ok(0) => Err(WriteError::NoSpaceForRecord),
             Ok(_) => {
                 if !self.write.failed {
                     let aligned_rec_len = align(self.write.total as u32 + REC_HEADER_LEN);
@@ -292,8 +293,8 @@ impl Write for KekWrite {
         }
         let data_len = data.len();
         if self.total + data_len > self.max_size {
-            self.failed |= true;
-            return Ok(0);
+            self.failed = true;
+            return Err(Error::new(WriteZero, "Data larger than maximum allowed"));
         }
         unsafe {
             let crt_ptr = self.write_ptr.add(self.total as usize);
@@ -332,8 +333,8 @@ mod test {
         for i in 10..20 {
             assert_eq!(raw_data[i], 1);
         }
-        let r3 = kw.write(&d1).unwrap();
-        assert_eq!(0, r3);
+        let r3 = kw.write(&d1);
+        assert_eq!(r3.unwrap_err().kind(), std::io::ErrorKind::WriteZero);
         assert!(kw.failed);
         kw.reset(write_ptr, 15);
         assert!(!kw.failed);
@@ -345,8 +346,8 @@ mod test {
             assert_eq!(raw_data[i], 2);
         }
         assert_eq!(kw.total, 10);
-        let r5 = kw.write(&d2).unwrap();
-        assert_eq!(0, r5);
+        let r5 = kw.write(&d2);
+        assert_eq!(r5.unwrap_err().kind(), std::io::ErrorKind::WriteZero);
         assert!(kw.failed);
         assert_eq!(kw.total, 10);
         //once it fails it will never recover, even if it has enough space

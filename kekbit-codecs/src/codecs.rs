@@ -1,3 +1,4 @@
+use std::io::Result;
 use std::io::Write;
 ///A data format that can be use by a kekbit channel
 pub trait DataFormat {
@@ -12,25 +13,27 @@ pub trait DataFormat {
 
 ///An entity which can be written in a channel using the specified data format
 pub trait Encodable<D: DataFormat> {
-    fn encode_to(&self, d: &D, w: &mut impl Write) -> std::io::Result<usize>;
+    ///Encodes an object on the spcified data format into a `Write`. If during
+    ///the encoding operation an IO error occurs the operation should be cancelled.
+    ///
+    ///
+    /// # Errors
+    ///
+    /// If the encoding fails or an IO error occurs.
+    fn encode(&self, d: &D, w: &mut impl Write) -> Result<usize>;
 }
 
-// struct JsonDataFormat;
+///Any type wich can be decoded from a u8 slice in the specified data format
+pub trait Decodable<'a, D: DataFormat, T> {
+    ///Decodes a byte slice using the specified data format
+    ///
+    /// # Errors
+    ///
+    /// If the decodign fails an error will be returned
+    fn decode(d: &D, data: &'a [u8]) -> Result<T>;
+}
 
-// impl DataFormat for JsonDataFormat {
-//     fn id() -> u64 {
-//         17
-//     }
-//     fn media_type() -> &'static str {
-//         "application/json"
-//     }
-// }
-
-// impl<T: Serialize> Encodable<JsonDataFormat> for T {
-//     fn encode_to(&self, _format: &JsonDataFormat, w: &mut impl Write) {
-//         to_writer(w, self).unwrap();
-//     }
-// }
+//TODO decorators such timestamp or id
 
 pub mod raw;
 pub mod text;
