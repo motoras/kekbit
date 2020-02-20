@@ -9,9 +9,7 @@ https://www.rust-lang.org)
 [![Clippy](https://github.com/motoras/kekbit/workflows/Clippy/badge.svg)](https://github.com/motoras/kekbit/actions?query=workflow%3AClippy)
 [![codecov](https://codecov.io/gh/motoras/kekbit/branch/master/graph/badge.svg)](https://codecov.io/gh/motoras/kekbit)
 
-
-
-A set of mean lean and composable components for working with ultralight **persistent data channels** in rust. Such channels could be used for communication, transaction journaling, live replication of an application state or as a backend for persisting software system images.
+Mean and lean composable components for working with ultralight **persistent data channels** in rust. Such channels could be used for communication, transaction journaling, live replication of an application state or as a backend for persisting software system images.
 
 ## Basic Concepts
 
