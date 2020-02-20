@@ -37,7 +37,7 @@ The main kekbit crate just re-exports components from its subcrates:
 
 * [`kekbit-core`](kekbit-core)  defines the [`Writer`](https://docs.rs/kekbit/*/kekbit/core/trait.Writer.html) and [`Reader`](https://docs.rs/kekbit/*/kekbit/core/trait.Reader.html) traits together with the [`ShmWriter`](https://docs.rs/kekbit/*/kekbit/core/struct.ShmWriter.html) and [`ShmReader`](https://docs.rs/kekbit/*/kekbit/core/struct.ShmReader.html) implementations which provide write and read operations for memory mapped channels.
  
-* [`kekbit-codecs`](kekbit-codecs)  defines the [`DataFormat`](https://docs.rs/kekbit/*/kekbit/codecs/trait.DataFormat.html) and [`Encodable`](https://docs.rs/kekbit/*/kekbit/codecs/trait.Encodable.html) traits used to encode/decode data from channels.
+* [`kekbit-codecs`](kekbit-codecs)  defines the [`DataFormat`](https://docs.rs/kekbit/*/kekbit/codecs/trait.DataFormat.html), the [`Encodable`](https://docs.rs/kekbit/*/kekbit/codecs/trait.Encodable.html) and  [`Decodable`](https://docs.rs/kekbit/*/kekbit/codecs/trait.Decodable.html) traits used to encode/decode data from channels.
 
 
 ## Usage
