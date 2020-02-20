@@ -14,7 +14,7 @@ Mean and lean composable components for working with ultralight **persistent dat
 ## Basic Concepts
 
 #### Persistent data channels
-* Are a mechanism to sequentially persist data at a very fast rate
+* A mechanism to sequentially persist data at a very fast rate
 * They are **writer bound** - it is a writer which creates them and specify the particular structure of a channel such size, maximum record length, or timeout
 * They have a fixed predefined capacity which cannot be changed. 
 * Once a channel is closed, full, or abandoned it will never be used again for writing.
@@ -26,7 +26,7 @@ Mean and lean composable components for working with ultralight **persistent dat
 * Readers are components which poll data from a channel. Multiple readers could read at any given time from a channel, at their own pace, so the data available in the channel could be consumend multiple times, and in paralel by various readers.
 
 #### Codecs
-* Dara could be stored in any format
+* Data could be stored in any format
 * [Raw bytes](https://docs.rs/kekbit/*/kekbit/codecs/struct.RawBinDataFormat.html) and [plain text](https://docs.rs/kekbit/*/kekbit/codecs/struct.PlainTextDataFormat.htmll) are the default formats provided
 * More complex(JSON, RON) serde-based ones are in development
 * Appplication specific data formats could be plugged in 
@@ -46,7 +46,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-kekbit = "0.2.2"
+kekbit = "0.2.3"
 ```
 See the [Examples](https://github.com/motoras/kekbit/blob/master/kekbit-core/examples/README.md) for detailed usage.
 
