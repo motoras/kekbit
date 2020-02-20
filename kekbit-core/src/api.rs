@@ -140,14 +140,6 @@ pub enum ReadError {
         bytes_read: u32,
     },
 }
-///Errors caused by failed [move_to](trait.Reader.html#method.move_to) operation.
-#[derive(Debug)]
-pub enum InvalidPosition {
-    ///Position is not properly aligned with the channel's records
-    Unaligned { position: u32 },
-    ///Position is not available  in the channel - it is past the last valid record of the channel.
-    Unavailable { position: u32 },
-}
 
 impl ReadError {
     ///Returns the number of valid bytes read before an error occurred.
@@ -165,43 +157,14 @@ impl ReadError {
 /// are called 'kekbit readers'. Usually a reader is bound to a given channel, and it is
 /// expected that multiple readers will safely access the same channel simultaneous.
 pub trait Reader {
-    ///Accesses a number of records from the kekbit channel, and for each record, calls
-    ///the given callback.
-    ///
-    /// Returns the amount of bytes read from the channel
-    ///
-    /// # Arguments
-    ///
-    /// * `handler` - The callback function to be called when a record is pulled from the channel.
-    ///               The function will receive as parameters the position of the message in the channel, and the message in binary format.
-    /// * `message_count` - A hint about how many records shall be read from the channel before the method completes.
-    ///                     It is expected that this method will take from the channel at most this many records
-    ///
+    ///Attempts to read a message from the channel without blocking.
+    ///This method will either read a message from the channel immediately or return if no data is available.
+    ///     
+    /// Returns the next message available from the channel, if there is one, None otherwise.
     ///
     /// # Errors
+    /// Various [errors](enum.ReadError.html) may occur such: a `writer` timeout is detected, end of channel is reached, channel is closed or channel data is corrupted.
+    /// Once an error occurs, *any future read operation will fail*, so no more other records could ever be read from this channel.
     ///
-    /// If this function fails, than an error variant will be returned. These errors are not expected to be recoverable. Once any error except `Timeout` occurred, there will never be
-    /// data to read pass the current read marker. However reading from beginning of the channel to the current
-    /// read marker should still be a valid operation. The `Timeout` exception,
-    /// may or may not be recoverable, depends on the channel `Writer` behaviour.
-    fn read(&mut self, handler: &mut impl FnMut(u32, &[u8]) -> (), message_count: u16) -> Result<u32, ReadError>;
-
-    /// Moves the reader to the given position in the channel *if the position is valid and points
-    /// to the beginning of a record*. This method could be used by a reader to resume work from
-    /// a previous session.
-    ///
-    /// Returns the position if the operation succeeds
-    ///
-    /// # Arguments
-    ///
-    /// * `position` - The position in channel where we want the reader to point. The value is accounted
-    ///                 from the beginning of the channel(e.g. a position of zero means the beginning of the channel). The position
-    ///                 must be valid, it must be properly aligned, and is should point to the start of a record.
-    ///
-    /// #  Errors
-    ///
-    /// If the channel is corrupted or the position is invalid a [InvalidPosition](enum.InvalidPosition.html)
-    /// will occur.
-    ///
-    fn move_to(&mut self, position: u32) -> Result<u32, InvalidPosition>;
+    fn try_read<'a>(&mut self) -> Result<Option<&'a [u8]>, ReadError>;
 }

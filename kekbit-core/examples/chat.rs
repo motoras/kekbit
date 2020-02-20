@@ -1,7 +1,7 @@
 //! A chat sample which allows multiple instacnes to communicate
 //! by writing/reading messages from the console.
 use kekbit_codecs::codecs::text::PlainTextDataFormat;
-use kekbit_core::api::{Reader, Writer};
+use kekbit_core::api::Writer;
 use kekbit_core::header::Header;
 use kekbit_core::shm::{shm_writer, try_shm_reader};
 use kekbit_core::tick::TickUnit;
@@ -42,34 +42,22 @@ fn run_reader(channel_id: u64, run: Arc<AtomicBool>) {
     }
     let mut reader = reader_res.unwrap();
     while run.load(Ordering::Relaxed) == true {
-        let mut stop = false;
-        let read_res = reader.read(
-            &mut |_pos, msg: &[u8]| {
-                let msg_str = std::str::from_utf8(&msg).unwrap();
-                println!(">>>{}", msg_str);
-                if msg_str == "Bye".to_string() {
-                    println!("Received Bye. Exiting.....");
-                    stop = true;
-                }
-            },
-            10,
-        );
-        if stop {
+        let mut msg_iter = reader.try_iter();
+        for msg in &mut msg_iter {
+            let msg_str = std::str::from_utf8(&msg).unwrap();
+            println!(">>>{}", msg_str);
+            if msg_str == "Bye".to_string() {
+                println!("Received Bye. Exiting.....");
+                run.store(false, Ordering::Relaxed);
+                std::process::exit(0);
+            }
+        }
+        if msg_iter.size_hint().1 == Some(0) {
+            println!("Chat channel is closed.");
             run.store(false, Ordering::Relaxed);
             std::process::exit(0);
         } else {
-            match read_res {
-                Ok(bytes_count) => {
-                    if bytes_count == 0 {
-                        std::thread::sleep(Duration::from_millis(300));
-                    }
-                }
-                Err(err) => {
-                    println!("Error occured {:?} ", err);
-                    run.store(false, Ordering::Relaxed);
-                    std::process::exit(0);
-                }
-            }
+            std::thread::sleep(Duration::from_millis(300));
         }
     }
 }

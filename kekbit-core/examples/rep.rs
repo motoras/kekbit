@@ -5,7 +5,6 @@
 //! In order to start the replier type cargo run --example rep <reply_channel_id> <request_channel_id>
 use crossbeam::utils::Backoff;
 use kekbit_codecs::codecs::raw::RawBinDataFormat;
-use kekbit_core::api::Reader;
 use kekbit_core::api::Writer;
 use kekbit_core::header::Header;
 use kekbit_core::shm::shm_writer;
@@ -47,7 +46,7 @@ fn main() {
     //creates the channel where the replies will be sent together with the associated writer
     let mut writer = shm_writer(&tmp_dir, &header, RawBinDataFormat).unwrap();
     //tries to connect to the channel where the requests are pushed
-    let reader_rep = try_shm_reader(&tmp_dir, req_channel_id, 5000, 15);
+    let reader_rep = try_shm_reader(&tmp_dir, req_channel_id, 15000, 45);
     if reader_rep.is_err() {
         println!("Could not connect to request channel. Giving up..");
         std::process::exit(1);
@@ -56,31 +55,27 @@ fn main() {
     let mut reader = reader_rep.unwrap();
     //tries to read the requests
     loop {
-        let read_res = reader.read(
-            &mut |pos, bytes_msg| {
-                //extracts the request info
-                let id = read_u64(&bytes_msg, 0);
-                println!("Got request {} at pos {}", id, pos);
-                let first = read_u64(&bytes_msg, 8);
-                let second = read_u64(&bytes_msg, 16);
-                //compute and sent the reply
-                let res: u64 = first + second;
-                let mut reply: [u8; 16] = [0; 16];
-                reply[0..8].clone_from_slice(&id.to_le_bytes());
-                reply[8..16].clone_from_slice(&res.to_le_bytes());
-                writer.write(&reply).unwrap();
-                println!("Reply for {} sent", id);
-            },
-            5,
-        );
-        match read_res {
-            Ok(_) => backoff.snooze(),
-            Err(err) => {
-                //If any error is returned we gave up.
-                //Errors include timeout or reaching the 'Close' marker
-                println!("No more requests to read. {:?}", err);
-                break;
-            }
+        let mut msg_iter = reader.try_iter();
+        for bytes_msg in &mut msg_iter {
+            let id = read_u64(&bytes_msg, 0);
+            println!("Got request {}", id);
+            let first = read_u64(&bytes_msg, 8);
+            let second = read_u64(&bytes_msg, 16);
+            //compute and sent the reply
+            let res: u64 = first + second;
+            let mut reply: [u8; 16] = [0; 16];
+            reply[0..8].clone_from_slice(&id.to_le_bytes());
+            reply[8..16].clone_from_slice(&res.to_le_bytes());
+            writer.write(&reply).unwrap();
+            println!("Reply for {} sent", id);
+        }
+        if msg_iter.size_hint().1 == Some(0) {
+            //If the upper bound of the size hint is 0 no more messages will ever come
+            //Errors include timeout or reaching the 'Close' marker
+            println!("No more requests to read");
+            break;
+        } else {
+            backoff.snooze();
         }
     }
 }
