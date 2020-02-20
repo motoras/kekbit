@@ -16,14 +16,14 @@ Mean and lean composable components for working with ultralight **persistent dat
 #### Persistent data channels
 * A mechanism to sequentially persist data at a very fast rate
 * They are **writer bound** - it is a writer which creates them and specify the particular structure of a channel such size, maximum record length, or timeout
-* They have a fixed predefined capacity which cannot be changed. 
-* Once a channel is closed, full, or abandoned it will never be used again for writing.
-* They are backed by a file; using a filesystem with RAM for the backing store such as tempfs or /dev/shm could provide blazing fast speeds
+* They have a fixed predefined capacity. 
+* Once a channel is closed, is full, or is abandoned it will never be used again for writing.
+* They are backed by a file; using a RAM disk for storage such as tempfs or /dev/shm could provide blazing fast speeds
 * They always use little endian byte order
 
 #### Writers and Readers
 * Writers are components which push data into a persistent channel. For each channel there is only one writer.
-* Readers are components which poll data from a channel. Multiple readers could read at any given time from a channel, at their own pace, so the data available in the channel could be consumend multiple times, and in paralel by various readers.
+* Readers are components which poll data from a channel. Data available in the channel could be consumend multiple times, sequential or in paralel by multiple readers.
 
 #### Codecs
 * Data could be stored in any format
