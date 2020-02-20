@@ -8,10 +8,12 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Decodable trait
 - Decodable support for RawBinDataFormat and PlainTextDataFormat
+- Non-blocking Iterator access for ShmReader
 
 ### Changed
 - Error handling in ShmWriter
 - Encodable trait returns Result
+- The read method in Reader was renamed try_read, requires no callback handler, and returns an Option wrapped in a Result
 
 
 ## [0.2.3] 2020-02-18
