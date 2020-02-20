@@ -40,7 +40,7 @@ fn main() {
     //creates the channel where the requests will be sent together with the associated writer
     let mut writer = shm_writer(&tmp_dir, &header, RawBinDataFormat).unwrap();
     //tries to connect to the channel from where the replies will be read
-    let reader_rep = try_shm_reader(&tmp_dir, reply_channel_id, 5000, 15);
+    let reader_rep = try_shm_reader(&tmp_dir, reply_channel_id, 15000, 45);
     if reader_rep.is_err() {
         println!("Could not connect to replier. Giving up..");
         std::process::exit(1);
@@ -61,32 +61,27 @@ fn main() {
         waiting_for.insert(idx);
         backoff.snooze();
         //check for a reply, it may or may not have come yet
-        reader
-            .read(
-                &mut |pos, bytes_msg| {
-                    let id = read_u64(&bytes_msg, 0);
-                    let res = read_u64(&bytes_msg, 8);
-                    waiting_for.remove(&id);
-                    println!("Reply for request {} is {}. Pos {}", id, res, pos);
-                },
-                1,
-            )
-            .unwrap();
+        reader.try_read().expect("Can't access replies queue").map(|bytes_msg| {
+            let id = read_u64(&bytes_msg, 0);
+            let res = read_u64(&bytes_msg, 8);
+            waiting_for.remove(&id);
+            println!("Reply for request {} is {}.", id, res);
+        });
     }
 
     //check for all replies which are missing
     while !waiting_for.is_empty() {
-        reader
-            .read(
-                &mut |pos, bytes_msg| {
-                    let id = read_u64(&bytes_msg, 0);
-                    let res = read_u64(&bytes_msg, 8);
-                    waiting_for.remove(&id);
-                    println!("Reply for request {} is {}. Pos {}", id, res, pos);
-                },
-                1,
-            )
-            .unwrap();
+        let mut msg_iter = reader.try_iter();
+        for bytes_msg in &mut msg_iter {
+            let id = read_u64(&bytes_msg, 0);
+            let res = read_u64(&bytes_msg, 8);
+            waiting_for.remove(&id);
+            println!("Reply for request {} is {}.", id, res);
+        }
+        if msg_iter.size_hint().1 == Some(0) {
+            println!("Can't get replies for {:?}. Giving up!", waiting_for);
+            break;
+        }
         backoff.spin();
     }
 }

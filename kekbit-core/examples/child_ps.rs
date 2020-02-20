@@ -60,8 +60,12 @@ pub fn run_reader() -> Result<(), ()> {
     let mut stop = false;
     let mut msg_count = 0;
     while !stop {
-        match reader.read(&mut |_, _| msg_count += 1, 30u16) {
-            Ok(bytes_read) => total_bytes += bytes_read as u64,
+        match reader.try_read() {
+            Ok(Some(bytes)) => {
+                total_bytes += bytes.len() as u64;
+                msg_count += 1
+            }
+            Ok(None) => (),
             Err(read_err) => match read_err {
                 ReadError::Timeout { .. } => {
                     info!("Timeout detected by reader");
