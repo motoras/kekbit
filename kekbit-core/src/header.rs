@@ -108,7 +108,6 @@ impl Header {
     ///
     /// # use kekbit_core::tick::TickUnit::Nanos;
     /// # use kekbit_core::header::Header;
-    /// # use kekbit_codecs::codecs::raw::RawBinDataFormat;
     /// use kekbit_core::shm::*;
     /// # const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
@@ -116,7 +115,7 @@ impl Header {
     /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
     /// let dir_path = test_tmp_dir.path();
-    ///  # let writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
+    ///  # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
     ///
     /// let kek_file_name = storage_path(dir_path, channel_id);
     /// let kek_file = OpenOptions::new()
