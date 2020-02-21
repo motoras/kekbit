@@ -1,7 +1,7 @@
 //! A basic kekbit channel reader. Reads from a kekbit channel and prints on the screen.
 //! Will stop if is timing out or if a 'Bye' message is received.
 //! Start it with the following command echo_out <channel_id>
-use kekbit_core::shm::try_shm_reader;
+use kekbit::core::try_shm_reader;
 
 fn main() {
     let args: Vec<u64> = std::env::args().skip(1).map(|id| id.parse().unwrap()).collect();

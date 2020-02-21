@@ -3,12 +3,12 @@
 //! a request id, and 2 values which the repliers is suppose to sum them up.
 //! In order to start the requester type cargo run --example req <request_channel_id> <reply_channel_id>
 use crossbeam::utils::Backoff;
-use kekbit_core::api::Reader;
-use kekbit_core::api::Writer;
-use kekbit_core::header::Header;
-use kekbit_core::shm::shm_writer;
-use kekbit_core::shm::try_shm_reader;
-use kekbit_core::tick::TickUnit::Secs;
+use kekbit::api::Reader;
+use kekbit::api::Writer;
+use kekbit::core::header::Header;
+use kekbit::core::shm_writer;
+use kekbit::core::tick::TickUnit::Secs;
+use kekbit::core::try_shm_reader;
 use std::collections::HashSet;
 
 #[inline]

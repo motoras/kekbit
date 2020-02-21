@@ -1,8 +1,8 @@
-use kekbit_core::api::ReadError::*;
-use kekbit_core::api::{Reader, Writer};
-use kekbit_core::header::Header;
-use kekbit_core::shm::{shm_writer, storage_path, try_shm_reader};
-use kekbit_core::tick::TickUnit;
+use kekbit::api::ReadError::*;
+use kekbit::api::{Reader, Writer};
+use kekbit::core::header::Header;
+use kekbit::core::tick::TickUnit;
+use kekbit::core::{shm_writer, storage_path, try_shm_reader};
 use std::process::exit;
 
 use log::{error, info};

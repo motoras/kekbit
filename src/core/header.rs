@@ -1,9 +1,9 @@
 //!Handles metadata associated with a channel.
+use super::tick::TickUnit;
+use super::utils::{align, is_aligned, REC_HEADER_LEN};
+use super::version::Version;
 use crate::api::ChannelError;
 use crate::api::ChannelError::{IncompatibleVersion, InvalidCapacity, InvalidMaxMessageLength, InvalidSignature};
-use crate::tick::TickUnit;
-use crate::utils::{align, is_aligned, REC_HEADER_LEN};
-use crate::version::Version;
 use std::cmp::max;
 use std::cmp::min;
 

@@ -1,7 +1,7 @@
+use super::header::Header;
+use super::utils::{align, load_atomic_u64, CLOSE, REC_HEADER_LEN, U64_SIZE, WATERMARK};
 use crate::api::ReadError::*;
 use crate::api::{ChannelError, ReadError, Reader};
-use crate::header::Header;
-use crate::utils::{align, load_atomic_u64, CLOSE, REC_HEADER_LEN, U64_SIZE, WATERMARK};
 use log::{error, info, warn};
 use memmap::MmapMut;
 use std::cmp::Ordering::*;

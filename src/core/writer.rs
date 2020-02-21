@@ -1,7 +1,7 @@
+use super::header::Header;
+use super::utils::{align, store_atomic_u64, CLOSE, REC_HEADER_LEN, WATERMARK};
 use crate::api::ChannelError::AccessError;
 use crate::api::{ChannelError, Encodable, WriteError, Writer};
-use crate::header::Header;
-use crate::utils::{align, store_atomic_u64, CLOSE, REC_HEADER_LEN, WATERMARK};
 use log::{debug, error, info};
 use memmap::MmapMut;
 use std::cmp::min;

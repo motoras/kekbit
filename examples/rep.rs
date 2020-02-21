@@ -4,11 +4,11 @@
 //! u64 values: the id of the request and the sum of the two values from request.
 //! In order to start the replier type cargo run --example rep <reply_channel_id> <request_channel_id>
 use crossbeam::utils::Backoff;
-use kekbit_core::api::Writer;
-use kekbit_core::header::Header;
-use kekbit_core::shm::shm_writer;
-use kekbit_core::shm::try_shm_reader;
-use kekbit_core::tick::TickUnit::Secs;
+use kekbit::api::Writer;
+use kekbit::core::header::Header;
+use kekbit::core::shm_writer;
+use kekbit::core::tick::TickUnit::Secs;
+use kekbit::core::try_shm_reader;
 
 #[inline]
 fn read_u64(data: &[u8], offset: usize) -> u64 {

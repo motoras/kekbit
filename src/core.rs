@@ -1,15 +1,20 @@
 //! Defines operations to create readers and writers backed by a memory mapped channel.
+pub mod header;
 pub mod reader;
-use reader::ShmReader;
+pub mod tick;
+mod utils;
+mod version;
 pub mod writer;
-use crate::header::Header;
+
+use crate::core::header::Header;
 use log::{error, info};
 use memmap::MmapOptions;
+use reader::ShmReader;
 
 use crate::api::ChannelError;
 use crate::api::ChannelError::*;
 
-use crate::utils::FOOTER_LEN;
+use crate::core::utils::FOOTER_LEN;
 use std::fs::OpenOptions;
 use std::fs::{remove_file, DirBuilder};
 use std::path::Path;
@@ -237,12 +242,12 @@ pub fn storage_path(root_path: &Path, channel_id: u64) -> Box<Path> {
 
 #[cfg(test)]
 mod test {
+    use super::tick::TickUnit::Nanos;
+    use super::utils::{align, REC_HEADER_LEN};
     use super::*;
     use crate::api::ReadError;
     use crate::api::Reader;
     use crate::api::Writer;
-    use crate::tick::TickUnit::Nanos;
-    use crate::utils::{align, REC_HEADER_LEN};
     use std::sync::Arc;
     use std::sync::Once;
     use tempdir::TempDir;
