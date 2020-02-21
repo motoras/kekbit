@@ -1,5 +1,5 @@
-use kekbit_codecs::codecs::raw::RawBinDataFormat;
-use kekbit_core::api::{ReadError, Reader, Writer};
+use kekbit_core::api::ReadError::*;
+use kekbit_core::api::{Reader, Writer};
 use kekbit_core::header::Header;
 use kekbit_core::shm::{shm_writer, storage_path, try_shm_reader};
 use kekbit_core::tick::TickUnit;
@@ -19,7 +19,7 @@ pub fn run_writer() -> Result<(), ()> {
     info!("Creating writer process ...{}", getpid());
     let chunk_size = 100;
     let header = Header::new(100, 1000, chunk_size * (ITERATIONS + 100), 1000, 99999999999, TickUnit::Nanos);
-    let mut writer = shm_writer(&Path::new(Q_PATH), &header, RawBinDataFormat).unwrap();
+    let mut writer = shm_writer(&Path::new(Q_PATH), &header).unwrap();
     let msg_bytes = "There are 10 kinds of people: those who know binary and those who don't".as_bytes();
     // let msgs: Vec<&str> = "There are 10 kinds of people: those who know binary and those who don't"
     //     .split_whitespace()
@@ -56,38 +56,34 @@ pub fn run_writer() -> Result<(), ()> {
 pub fn run_reader() -> Result<(), ()> {
     info!("Creating reader porcess ...{}", getpid());
     let mut reader = try_shm_reader(&Path::new(Q_PATH), 1000, 2000, 200).unwrap();
-    let mut total_bytes = 0u64;
     let mut stop = false;
     let mut msg_count = 0;
     while !stop {
         match reader.try_read() {
-            Ok(Some(bytes)) => {
-                total_bytes += bytes.len() as u64;
-                msg_count += 1
-            }
+            Ok(Some(_)) => msg_count += 1,
             Ok(None) => (),
             Err(read_err) => match read_err {
-                ReadError::Timeout { .. } => {
+                Timeout(_) => {
                     info!("Timeout detected by reader");
                     stop = true;
                 }
-                ReadError::Closed { bytes_read } => {
-                    total_bytes += bytes_read as u64;
+                Closed => {
                     info!("Closed channel detected by reader");
                     stop = true;
                 }
-                ReadError::ChannelFull { bytes_read } | ReadError::Failed { bytes_read } => {
-                    total_bytes += bytes_read as u64;
-                    error!(
-                        "Read failed. Will stop. So far we read {} bytes in {} messages",
-                        total_bytes, msg_count
-                    );
+                ChannelFull | Failed => {
+                    error!("Read failed. Will stop. So far we read {} messages", msg_count);
                     panic!("Read failed!!!!");
                 }
             },
         }
     }
-    info!("We read {} bytes in {} messages", total_bytes, msg_count);
+    info!(
+        "We read {} bytes in {} messages. Channel state is {:?}",
+        reader.position(),
+        msg_count,
+        reader.exhausted()
+    );
     Ok(())
 }
 

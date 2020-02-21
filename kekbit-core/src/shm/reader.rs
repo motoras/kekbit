@@ -1,8 +1,10 @@
+use crate::api::ReadError::*;
 use crate::api::{ChannelError, ReadError, Reader};
 use crate::header::Header;
 use crate::utils::{align, load_atomic_u64, CLOSE, REC_HEADER_LEN, U64_SIZE, WATERMARK};
 use log::{error, info, warn};
 use memmap::MmapMut;
+use std::cmp::Ordering::*;
 use std::iter::Iterator;
 use std::result::Result;
 use std::sync::atomic::Ordering;
@@ -17,14 +19,13 @@ const END_OF_TIME: u64 = std::u64::MAX; //this should be good for any time unit 
 /// ```
 /// # use kekbit_core::tick::TickUnit::Nanos;
 /// # use kekbit_core::header::Header;
-/// # use kekbit_codecs::codecs::raw::RawBinDataFormat;
 /// use kekbit_core::shm::*;
 /// # const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
 /// let channel_id = 42;
 /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-/// # let writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
+/// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
 /// let reader = shm_reader(&test_tmp_dir.path(), channel_id).unwrap();
 /// println!("{:?}", reader.header());
 ///
@@ -35,6 +36,7 @@ pub struct ShmReader {
     data_ptr: *const u8,
     read_index: u32,
     expiration: u64,
+    failure: Option<ReadError>,
     _mmap: MmapMut,
 }
 
@@ -51,6 +53,7 @@ impl ShmReader {
             data_ptr,
             read_index: 0,
             expiration: END_OF_TIME,
+            failure: None,
             _mmap: mmap,
         })
     }
@@ -95,11 +98,18 @@ impl ShmReader {
     ///        std::thread::sleep(std::time::Duration::from_millis(200));
     ///    }
     ///}
+    ///
+    #[inline]
     pub fn try_iter(&mut self) -> TryIter {
-        TryIter {
-            inner: self,
-            available: true,
+        TryIter { inner: self }
+    }
+
+    #[inline]
+    fn record_failure(&mut self, failure: ReadError) -> ReadError {
+        if self.failure.is_none() {
+            self.failure = Some(failure);
         }
+        failure
     }
 }
 impl Reader for ShmReader {
@@ -118,7 +128,6 @@ impl Reader for ShmReader {
     /// ```
     /// # use kekbit_core::tick::TickUnit::Nanos;
     /// # use kekbit_core::header::Header;
-    /// # use kekbit_codecs::codecs::raw::RawBinDataFormat;
     /// use kekbit_core::shm::*;
     /// use crate::kekbit_core::api::Reader;
     /// # const FOREVER: u64 = 99_999_999_999;
@@ -126,7 +135,7 @@ impl Reader for ShmReader {
     /// let channel_id = 42;
     /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-    /// # let writer = shm_writer(&test_tmp_dir.path(), &header, RawBinDataFormat).unwrap();
+    /// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
     /// let mut reader = shm_reader(&test_tmp_dir.path(), channel_id).unwrap();
     /// match reader.try_read() {
     ///        Ok(Some(buf)) =>println!("Read {}", std::str::from_utf8(buf).unwrap()),
@@ -138,22 +147,15 @@ impl Reader for ShmReader {
     ///
     #[allow(clippy::cast_ptr_alignment)]
     fn try_read<'a>(&mut self) -> Result<Option<&'a [u8]>, ReadError> {
-        let bytes_at_start = self.read_index;
         loop {
+            //will simply skip all the hearbeats. We may add  a limit of the heartbeats we skip in the future if
+            //they proof to be too many.
             let crt_index = self.read_index as usize;
-            if crt_index + U64_SIZE >= self.header.capacity() as usize {
-                return Err(ReadError::ChannelFull {
-                    bytes_read: self.read_index - bytes_at_start,
-                });
-            }
+            debug_assert!(crt_index + U64_SIZE < self.header.capacity() as usize);
             let rec_len: u64 = unsafe { load_atomic_u64(self.data_ptr.add(crt_index) as *mut u64, Ordering::Acquire) };
             if rec_len <= self.header.max_msg_len() as u64 {
                 let rec_size = align(REC_HEADER_LEN + rec_len as u32);
-                if crt_index + rec_size as usize >= self.header.capacity() as usize {
-                    return Err(ReadError::ChannelFull {
-                        bytes_read: self.read_index - bytes_at_start,
-                    });
-                }
+                debug_assert!((crt_index + rec_size as usize) < self.header.capacity() as usize);
                 self.expiration = END_OF_TIME;
                 self.read_index += rec_size;
                 if rec_len > 0 {
@@ -166,39 +168,42 @@ impl Reader for ShmReader {
                     };
                 }
             } else {
-                match rec_len {
+                return match rec_len {
                     WATERMARK => {
-                        if self.expiration == END_OF_TIME {
-                            //start the timeout clock
-                            self.expiration = self.header.tick_unit().nix_time() + self.header.timeout();
-                            return Ok(None);
-                        } else if self.expiration >= self.header.tick_unit().nix_time() {
-                            return Ok(None);
-                        } else {
-                            warn!("Writer timeout detected. Channel will be abandoned. No more reads will be performed");
-                            return Err(ReadError::Timeout {
-                                timeout: self.expiration,
-                            });
+                        let tick = self.header.tick_unit().nix_time();
+                        match self.expiration.cmp(&tick) {
+                            Less | Equal => {
+                                warn!("Writer timeout detected. Channel will be abandoned. No more reads will be performed");
+                                Err(self.record_failure(Timeout(self.expiration)))
+                            }
+                            Greater => {
+                                if self.expiration == END_OF_TIME {
+                                    self.expiration = tick + self.header.timeout();
+                                }
+                                Ok(None)
+                            }
                         }
                     }
                     CLOSE => {
                         info!("Producer closed channel");
-                        return Err(ReadError::Closed {
-                            bytes_read: self.read_index - bytes_at_start,
-                        });
+                        Err(self.record_failure(Closed))
                     }
                     _ => {
                         error!(
                             "Channel corrupted. Unknown Marker {:#016X} at position {} ",
                             rec_len, self.read_index,
                         );
-                        return Err(ReadError::Failed {
-                            bytes_read: self.read_index - bytes_at_start,
-                        });
+                        Err(self.record_failure(Failed))
                     }
-                }
+                };
             }
         }
+    }
+
+    ///Find out if the channel is exhausted and what was the reason to be marked as `exhausted`.
+    #[inline]
+    fn exhausted(&self) -> Option<ReadError> {
+        self.failure
     }
 }
 
@@ -207,32 +212,27 @@ impl Reader for ShmReader {
 ///The iterator never blocks waiting for a message.
 pub struct TryIter<'a> {
     inner: &'a mut ShmReader,
-    available: bool,
 }
 
 impl<'a> Iterator for TryIter<'a> {
     type Item = &'a [u8];
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if self.available {
+        if self.inner.exhausted().is_none() {
             match self.inner.try_read() {
                 Ok(None) => None,
                 Ok(record) => record,
-                Err(_) => {
-                    self.available = false;
-                    None
-                }
+                Err(_) => None,
             }
         } else {
             None
         }
     }
     ///Returns (0,None) if records may be still available in the channel or (0,Some(0)) if
-    ///no records will ever be available from this channel, such it can be use to know
-    /// when to stop calling next on this iterator.
+    ///the channel is exhausted. Use this method if you want to know if future `next` calls will ever produce more items.
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        if self.available {
+        if self.inner.exhausted().is_none() {
             (0, None)
         } else {
             (0, Some(0))

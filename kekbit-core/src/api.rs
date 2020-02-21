@@ -1,7 +1,26 @@
 //! Defines read and write operations for a kekbit channel.
-use kekbit_codecs::codecs::DataFormat;
-use kekbit_codecs::codecs::Encodable;
 use std::io::Error;
+use std::io::Write;
+
+///An entity which can be written in a channel
+pub trait Encodable {
+    ///Encodes an object into a `Write`. If during
+    ///the encoding operation an IO error occurs the operation should be cancelled.
+    ///
+    ///
+    /// # Errors
+    ///
+    /// If the encoding fails or an IO error occurs.
+    fn encode(&self, w: &mut impl Write) -> Result<usize, Error>;
+}
+
+impl<T: AsRef<[u8]>> Encodable for T {
+    #[inline]
+    fn encode(&self, w: &mut impl Write) -> Result<usize, Error> {
+        w.write(self.as_ref())
+    }
+}
+
 ///Channel Access errors
 #[derive(Debug)]
 pub enum ChannelError {
@@ -79,7 +98,7 @@ pub enum WriteError {
 /// Implementers of this trait are called 'kekbit writers'. Usually a writer is bound to
 /// a given channel, and it is expected that there is only one writer which directly writes into the channel, however
 /// multiple writers may cooperate during the writing process. For any given channel a  [DataFormat](../codecs/trait.DataFormat.html) must be specified.
-pub trait Writer<D: DataFormat> {
+pub trait Writer {
     /// Writes a given record to a kekbit channel.
     ///
     /// Returns the total amount of bytes wrote into the channel or a `WriteError` if the write operation fails.
@@ -92,7 +111,7 @@ pub trait Writer<D: DataFormat> {
     ///
     /// If the operation fails, than an error variant will be returned. Some errors such [EncodingError or NoSpaceForRecord](enum.WriteError.html) may
     /// allow future writes to succeed while others such [ChannelFull](enum.WriteError.html#ChannelFull) signals the end of life for the channel.
-    fn write(&mut self, data: &impl Encodable<D>) -> Result<u32, WriteError>;
+    fn write(&mut self, data: &impl Encodable) -> Result<u32, WriteError>;
     /// Writes into the stream a heartbeat message. This method shall be used by all writers
     /// which want to respect to timeout interval associated to a channel. Hearbeating is the
     /// expected mechanism by which a channel writer will keep the active readers interested in
@@ -120,37 +139,14 @@ pub trait Writer<D: DataFormat> {
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ReadError {
     ///Read operation had unexpectedly failed. Usually will happen when a channel was corrupted.
-    Failed {
-        ///The amount of bytes read *before* the error occurred.
-        bytes_read: u32,
-    },
-    ///Writer timeout had been detected. While the writer may resume pushing data in to the channel, most likely he had abandoned the channel.
-    Timeout {
-        ///Last time stamp at which the channel was still considered valid.
-        timeout: u64,
-    },
+    Failed,
+    ///Writer timeout had been detected. While the writer may resume pushing data into the channel, most likely he had abandoned the channel.
+    ///It holds the last time stamp at which the channel was still valid.
+    Timeout(u64),
     ///Channel is closed no more data will be pushed into.
-    Closed {
-        ///The amount of bytes read *before* the channel close mark was reached.
-        bytes_read: u32,
-    },
+    Closed,
     ///Channel full. There is no more space available in this channel.
-    ChannelFull {
-        ///The amount of bytes read *before* the end of channel was reached.
-        bytes_read: u32,
-    },
-}
-
-impl ReadError {
-    ///Returns the number of valid bytes read before an error occurred.
-    pub fn bytes_read(&self) -> u32 {
-        match self {
-            ReadError::Timeout { .. } => 0,
-            ReadError::Closed { bytes_read } => *bytes_read,
-            ReadError::ChannelFull { bytes_read } => *bytes_read,
-            ReadError::Failed { bytes_read } => *bytes_read,
-        }
-    }
+    ChannelFull,
 }
 
 ///The `Reader` trait allows reading bytes from a kekbit channel. Implementers of this trait
@@ -164,7 +160,15 @@ pub trait Reader {
     ///
     /// # Errors
     /// Various [errors](enum.ReadError.html) may occur such: a `writer` timeout is detected, end of channel is reached, channel is closed or channel data is corrupted.
-    /// Once an error occurs, *any future read operation will fail*, so no more other records could ever be read from this channel.
+    /// Once an error occurs the channel is marked as exhausted so *any future read operation will fail*.
     ///
     fn try_read<'a>(&mut self) -> Result<Option<&'a [u8]>, ReadError>;
+
+    ///Checks if the channel have been exhausted or is still active.  If the channel is active, a future read operation
+    /// may or may not succeed but it should be tried. No data will ever come from an exhausted channel.
+    /// Any read operation is futile.
+    ///
+    /// Returns `None` if the channel is active, or `Some<ReadError>` if the channel hase been exhausted. The
+    /// error returned is the reason for which the channel is considered exhausted.
+    fn exhausted(&self) -> Option<ReadError>;
 }

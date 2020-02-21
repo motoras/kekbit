@@ -25,16 +25,16 @@ maintenance = {status = "actively-developed"}
 [workspace]
 members = [
   ".",
-  "kekbit-core", "kekbit-codecs"
+  "kekbit-core","kekbit-codecs"
 ]
 
 [dependencies.kekbit-core]
 version = "0.2.4"
 path = "./kekbit-core"
 
-[dependencies.kekbit-codecs]
-version = "0.1.2"
-path = "./kekbit-codecs"
+#[dependencies.kekbit-codecs]
+#version = "0.1.2"
+#path = "./kekbit-codecs"
 
 
 
