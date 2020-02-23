@@ -1,15 +1,18 @@
 //! Defines operations to create readers and writers backed by a memory mapped channel.
-pub mod header;
-pub mod reader;
-pub mod tick;
+mod header;
+mod reader;
+mod tick;
 mod utils;
 mod version;
-pub mod writer;
+mod writer;
 
-use crate::core::header::Header;
+pub use header::*;
+pub use reader::*;
+pub use tick::*;
+pub use writer::*;
+
 use log::{error, info};
 use memmap::MmapOptions;
-use reader::ShmReader;
 
 use crate::api::ChannelError;
 use crate::api::ChannelError::*;
@@ -19,7 +22,6 @@ use std::fs::OpenOptions;
 use std::fs::{remove_file, DirBuilder};
 use std::path::Path;
 use std::result::Result;
-use writer::ShmWriter;
 /// Creates a kekbit reader associated to a memory mapped channel.
 ///
 /// Returns a ready to use reader which points to the beginning of a kekbit channel if succeeds, or an error if the operation fails.
@@ -37,9 +39,9 @@ use writer::ShmWriter;
 /// # Examples
 ///
 /// ```
-/// # use kekbit_core::tick::TickUnit::Nanos;
-/// # use kekbit_core::header::Header;
-/// use kekbit_core::shm::*;
+/// # use kekbit::core::TickUnit::Nanos;
+/// # use kekbit::core::Header;
+/// use kekbit::core::*;
 /// # const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
 /// let channel_id = 42;
@@ -104,9 +106,9 @@ pub fn shm_reader(root_path: &Path, channel_id: u64) -> Result<ShmReader, Channe
 /// # Examples
 ///
 /// ```
-/// # use kekbit_core::tick::TickUnit::Nanos;
-/// # use kekbit_core::header::Header;
-/// use kekbit_core::shm::*;
+/// # use kekbit::core::TickUnit::Nanos;
+/// # use kekbit::core::Header;
+/// use kekbit::core::*;
 /// # const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
 /// let channel_id = 42;
@@ -149,10 +151,10 @@ pub fn try_shm_reader(root_path: &Path, channel_id: u64, duration_millis: u64, t
 /// # Examples
 ///
 /// ```
-/// use kekbit_core::tick::TickUnit::Nanos;
-/// use kekbit_core::shm::*;
-/// use kekbit_core::header::Header;
-/// use kekbit_core::api::Writer;
+/// use kekbit::core::TickUnit::Nanos;
+/// use kekbit::core::*;
+/// use kekbit::core::Header;
+/// use kekbit::api::Writer;
 ///
 /// const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;

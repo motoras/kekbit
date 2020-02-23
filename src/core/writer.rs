@@ -1,5 +1,5 @@
-use super::header::Header;
 use super::utils::{align, store_atomic_u64, CLOSE, REC_HEADER_LEN, WATERMARK};
+use super::Header;
 use crate::api::ChannelError::AccessError;
 use crate::api::{ChannelError, Encodable, WriteError, Writer};
 use log::{debug, error, info};
@@ -20,10 +20,10 @@ use std::sync::atomic::Ordering;
 /// # Examples
 ///
 /// ```
-/// use kekbit_core::tick::TickUnit::Nanos;
-/// use kekbit_core::shm::*;
-/// use kekbit_core::header::Header;
-/// use kekbit_core::api::Writer;
+/// use kekbit::core::TickUnit::Nanos;
+/// use kekbit::core::*;
+/// use kekbit::core::Header;
+/// use kekbit::api::Writer;
 ///
 /// const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
@@ -105,10 +105,10 @@ impl Writer for ShmWriter {
     /// # Examples
     ///
     /// ```
-    /// use kekbit_core::tick::TickUnit::Nanos;
-    /// use kekbit_core::shm::*;
-    /// use kekbit_core::header::Header;
-    /// use kekbit_core::api::Writer;
+    /// use kekbit::core::TickUnit::Nanos;
+    /// use kekbit::core::*;
+    /// use kekbit::core::Header;
+    /// use kekbit::api::Writer;
     ///
     /// const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
@@ -184,10 +184,10 @@ impl Writer for ShmWriter {
     /// # Examples
     ///
     /// ```
-    /// use kekbit_core::tick::TickUnit::Nanos;
-    /// use kekbit_core::shm::*;
-    /// use kekbit_core::header::Header;
-    /// use kekbit_core::api::Writer;
+    /// use kekbit::core::TickUnit::Nanos;
+    /// use kekbit::core::*;
+    /// use kekbit::core::Header;
+    /// use kekbit::api::Writer;
     ///
     /// const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;

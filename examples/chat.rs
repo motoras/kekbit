@@ -1,8 +1,8 @@
 //! A chat sample which allows multiple instacnes to communicate
 //! by writing/reading messages from the console.
 use kekbit::api::Writer;
-use kekbit::core::header::Header;
-use kekbit::core::tick::TickUnit;
+use kekbit::core::Header;
+use kekbit::core::TickUnit;
 use kekbit::core::{shm_writer, try_shm_reader};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;

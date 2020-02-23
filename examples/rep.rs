@@ -5,10 +5,10 @@
 //! In order to start the replier type cargo run --example rep <reply_channel_id> <request_channel_id>
 use crossbeam::utils::Backoff;
 use kekbit::api::Writer;
-use kekbit::core::header::Header;
 use kekbit::core::shm_writer;
-use kekbit::core::tick::TickUnit::Secs;
 use kekbit::core::try_shm_reader;
+use kekbit::core::Header;
+use kekbit::core::TickUnit::Secs;
 
 #[inline]
 fn read_u64(data: &[u8], offset: usize) -> u64 {

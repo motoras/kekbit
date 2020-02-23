@@ -1,7 +1,7 @@
 //!Handles metadata associated with a channel.
-use super::tick::TickUnit;
 use super::utils::{align, is_aligned, REC_HEADER_LEN};
 use super::version::Version;
+use super::TickUnit;
 use crate::api::ChannelError;
 use crate::api::ChannelError::{IncompatibleVersion, InvalidCapacity, InvalidMaxMessageLength, InvalidSignature};
 use std::cmp::max;
@@ -50,8 +50,8 @@ impl Header {
     /// # Example
     ///
     /// ```
-    /// use kekbit_core::tick::TickUnit::Nanos;
-    /// use kekbit_core::header::*;
+    /// use kekbit::core::TickUnit::Nanos;
+    /// use kekbit::core::*;
     ///     
     /// let producer_id: u64 = 111;
     /// let channel_id: u64 = 101;
@@ -106,9 +106,9 @@ impl Header {
     /// use memmap::MmapOptions;
     /// use std::fs::OpenOptions;
     ///
-    /// # use kekbit_core::tick::TickUnit::Nanos;
-    /// # use kekbit_core::header::Header;
-    /// use kekbit_core::shm::*;
+    /// # use kekbit::core::TickUnit::Nanos;
+    /// # use kekbit::core::Header;
+    /// use kekbit::core::*;
     /// # const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
     /// let channel_id = 4242;
@@ -212,9 +212,9 @@ impl Header {
     /// use memmap::MmapOptions;
     /// use std::fs::OpenOptions;
     ///
-    /// use kekbit_core::tick::TickUnit::Nanos;
-    /// use kekbit_core::header::Header;
-    /// use kekbit_core::shm::*;
+    /// use kekbit::core::TickUnit::Nanos;
+    /// use kekbit::core::Header;
+    /// use kekbit::core::*;
     /// use std::fs::DirBuilder;
     ///
     /// const FOREVER: u64 = 99_999_999_999;

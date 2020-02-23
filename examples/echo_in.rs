@@ -3,9 +3,9 @@
 //! The channel will timeout after 30 seconds of inactivity.
 //! Start it with the following command echo_in <channel_id>
 use kekbit::api::Writer;
-use kekbit::core::header::Header;
 use kekbit::core::shm_writer;
-use kekbit::core::tick::TickUnit::Secs;
+use kekbit::core::Header;
+use kekbit::core::TickUnit::Secs;
 
 fn main() {
     let args: Vec<u64> = std::env::args().skip(1).map(|id| id.parse().unwrap()).collect();

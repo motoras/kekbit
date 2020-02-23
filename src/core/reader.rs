@@ -1,5 +1,5 @@
-use super::header::Header;
 use super::utils::{align, load_atomic_u64, CLOSE, REC_HEADER_LEN, U64_SIZE, WATERMARK};
+use super::Header;
 use crate::api::ReadError::*;
 use crate::api::{ChannelError, ReadError, Reader};
 use log::{error, info, warn};
@@ -17,9 +17,9 @@ const END_OF_TIME: u64 = std::u64::MAX; //this should be good for any time unit 
 /// # Examples
 ///
 /// ```
-/// # use kekbit_core::tick::TickUnit::Nanos;
-/// # use kekbit_core::header::Header;
-/// use kekbit_core::shm::*;
+/// # use kekbit::core::TickUnit::Nanos;
+/// # use kekbit::core::Header;
+/// use kekbit::core::*;
 /// # const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
 /// let channel_id = 42;
@@ -126,10 +126,10 @@ impl Reader for ShmReader {
     /// # Examples
     ///
     /// ```
-    /// # use kekbit_core::tick::TickUnit::Nanos;
-    /// # use kekbit_core::header::Header;
-    /// use kekbit_core::shm::*;
-    /// use crate::kekbit_core::api::Reader;
+    /// # use kekbit::core::TickUnit::Nanos;
+    /// # use kekbit::core::Header;
+    /// use kekbit::core::*;
+    /// use crate::kekbit::api::Reader;
     /// # const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
     /// let channel_id = 42;
