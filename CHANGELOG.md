@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.0] In development
+## [0.3.0] 2020-02-24
 
 ### Added
 - Non-blocking Iterator access for ShmReader
