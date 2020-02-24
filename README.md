@@ -9,7 +9,7 @@ https://www.rust-lang.org)
 [![Clippy](https://github.com/motoras/kekbit/workflows/Clippy/badge.svg)](https://github.com/motoras/kekbit/actions?query=workflow%3AClippy)
 [![codecov](https://codecov.io/gh/motoras/kekbit/branch/master/graph/badge.svg)](https://codecov.io/gh/motoras/kekbit)
 
-Mean and lean composable components for working with ultralight **persistent data channels** in rust. Such channels could be used for communication, transaction journaling, live replication of an application state or as a backend for persisting software system images.
+Mean and lean composable components for working with ultralight **persistent data channels** in rust. Channels could be used for communication, transaction journaling, live replication of an application state or as a backend for persisting software system images.
 
 ## Basic Concepts
 
@@ -18,27 +18,16 @@ Mean and lean composable components for working with ultralight **persistent dat
 * They are **writer bound** - it is a writer which creates them and specify the particular structure of a channel such size, maximum record length, or timeout
 * They have a fixed predefined capacity. 
 * Once a channel is closed, is full, or is abandoned it will never be used again for writing.
+* They are byte-oriented sinks
 * They are backed by a file; using a RAM disk for storage such as tempfs or /dev/shm could provide blazing fast speeds
-* They always use little endian byte order
+* They are always use little endian byte order
 
 #### Writers and Readers
 * Writers are components which push data into a persistent channel. For each channel there is only one writer.
 * Readers are components which poll data from a channel. Data available in the channel could be consumend multiple times, sequential or in paralel by multiple readers.
-
-#### Codecs
-* Data could be stored in any format
-* [Raw bytes](https://docs.rs/kekbit/*/kekbit/codecs/struct.RawBinDataFormat.html) and [plain text](https://docs.rs/kekbit/*/kekbit/codecs/struct.PlainTextDataFormat.htmll) are the default formats provided
-* More complex(JSON, RON) serde-based ones are in development
-* Appplication specific data formats could be plugged in 
-
-
-## Components
-The main kekbit crate just re-exports components from its subcrates:
-
-* [`kekbit-core`](kekbit-core)  defines the [`Writer`](https://docs.rs/kekbit/*/kekbit/core/trait.Writer.html) and [`Reader`](https://docs.rs/kekbit/*/kekbit/core/trait.Reader.html) traits together with the [`ShmWriter`](https://docs.rs/kekbit/*/kekbit/core/struct.ShmWriter.html) and [`ShmReader`](https://docs.rs/kekbit/*/kekbit/core/struct.ShmReader.html) implementations which provide write and read operations for memory mapped channels.
- 
-* [`kekbit-codecs`](kekbit-codecs)  defines the [`DataFormat`](https://docs.rs/kekbit/*/kekbit/codecs/trait.DataFormat.html), the [`Encodable`](https://docs.rs/kekbit/*/kekbit/codecs/trait.Encodable.html) and  [`Decodable`](https://docs.rs/kekbit/*/kekbit/codecs/trait.Decodable.html) traits used to encode/decode data from channels.
-
+* The default implementations for both readers and writers are non-blocking
+* Readers can also offer a stright `Iterator` API
+* Additional features can be plug in by composing together multiple readers or multiple writers
 
 ## Usage
 
@@ -65,4 +54,3 @@ Licensed under
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, shall be licensed as above, without any additional terms or conditions.
-
