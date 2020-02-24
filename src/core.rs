@@ -1,4 +1,4 @@
-//! Defines operations to create readers and writers backed by a memory mapped channel.
+//! Provides the components and functions required to work with memory mapped data channels.
 mod header;
 mod reader;
 mod tick;
@@ -34,7 +34,7 @@ use std::result::Result;
 ///
 /// # Errors
 ///
-/// Various [errors](enum.ChannelError.html) may occur if the operation fails.
+/// Various [errors](../api/enum.ChannelError.html) may occur if the operation fails.
 ///
 /// # Examples
 ///
@@ -65,7 +65,6 @@ pub fn shm_reader(root_path: &Path, channel_id: u64) -> Result<ShmReader, Channe
             file_name: kek_file_path.to_str().unwrap().to_string(),
         });
     }
-
     let kek_file = OpenOptions::new()
         .write(true)
         .read(true)
@@ -126,7 +125,7 @@ pub fn try_shm_reader(root_path: &Path, channel_id: u64, duration_millis: u64, t
     let interval = duration_millis / tries;
     let sleep_duration = std::time::Duration::from_millis(interval);
     let mut reader_res = shm_reader(root_path, channel_id);
-    let mut tries_left = tries - 1;
+    let mut tries_left = tries;
     while reader_res.is_err() && tries_left > 0 {
         std::thread::sleep(sleep_duration);
         reader_res = shm_reader(root_path, channel_id);

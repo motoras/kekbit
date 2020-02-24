@@ -1,4 +1,4 @@
-//!Handles metadata associated with a channel.
+//!Provides access to metadata associated with a channel.
 use super::utils::{align, is_aligned, REC_HEADER_LEN};
 use super::version::Version;
 use super::TickUnit;

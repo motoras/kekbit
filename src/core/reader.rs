@@ -68,7 +68,7 @@ impl ShmReader {
         self.read_index
     }
 
-    /// Returns A non-blocking iterator over messages in the channel.
+    /// Returns A *non-blocking* iterator over messages in the channel.
     ///
     /// Each call to [`next`] returns a message if there is one ready available. The iterator
     /// will never block waiting for a message to be available.
@@ -200,7 +200,8 @@ impl Reader for ShmReader {
         }
     }
 
-    ///Find out if the channel is exhausted and what was the reason to be marked as `exhausted`.
+    ///Check if the channel is exhausted and what was the reason of exhaustion.
+    /// Could be also use to check if an iterator will ever yield a record again.
     #[inline]
     fn exhausted(&self) -> Option<ReadError> {
         self.failure
@@ -208,7 +209,7 @@ impl Reader for ShmReader {
 }
 
 ///A non-blocking iterator over messages in the channel.
-///Each call to next returns a message if there is one ready to be received.
+///Each call to `next` returns a message if there is one ready to be received.
 ///The iterator never blocks waiting for a message.
 pub struct TryIter<'a> {
     inner: &'a mut ShmReader,
@@ -228,7 +229,7 @@ impl<'a> Iterator for TryIter<'a> {
             None
         }
     }
-    ///Returns (0,None) if records may be still available in the channel or (0,Some(0)) if
+    ///Returns (0, None) if records may be still available in the channel or (0, Some(0)) if
     ///the channel is exhausted. Use this method if you want to know if future `next` calls will ever produce more items.
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -239,14 +240,3 @@ impl<'a> Iterator for TryIter<'a> {
         }
     }
 }
-
-// impl<'a> IntoIterator for &'a mut ShmReader {
-//     type Item = IterResult<&'a [u8]>;
-//     type IntoIter = Iter<'a>;
-//     fn into_iter(self) -> Self::IntoIter {
-//         Iter {
-//             inner: self,
-//             available: true,
-//         }
-//     }
-// }
