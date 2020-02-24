@@ -37,7 +37,7 @@ Add this to your `Cargo.toml`:
 [dependencies]
 kekbit = "0.2.3"
 ```
-See the [Examples](https://github.com/motoras/kekbit/blob/master/kekbit-core/examples/README.md) for detailed usage.
+See the [Examples](https://github.com/motoras/kekbit/blob/master/examples/README.md) for detailed usage.
 
 ## Compatibility
 
