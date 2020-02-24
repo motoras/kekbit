@@ -5,7 +5,6 @@ The following examples provide a quick introduction on how to use kekbit channel
 ## Echo
  
 This sample illustrates the basic channel operations. A [Writer](https://github.com/motoras/kekbit/blob/master/examples/echo_in.rs) creates a channel than writes into it every line of text read from the console. A [Reader](https://github.com/motoras/kekbit/blob/master/examples/echo_out.rs) connects to an existing channel than prints to the console every messages it reads from that channel.
-The channel uses the ubicuos [plain text encoder](https://github.com/motoras/kekbit/blob/master/kekbit-codecs/src/codecs/text.rs)
  
  The *Bye* message will stop both the reader and the writer. The channel has a limit of 1000 messages of 1024 bytes each and a timeout of 30 seconds. 
  
