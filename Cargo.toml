@@ -21,6 +21,7 @@ build = { repository = "motoras/kekbit", branch = "master", service = "github" }
 maintenance = {status = "actively-developed"}
 
 [lib]
+path= "src/lib.rs"
 
 [dependencies]
 memmap = "0.7.0"
