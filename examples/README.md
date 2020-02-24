@@ -4,12 +4,12 @@ The following examples provide a quick introduction on how to use kekbit channel
 
 ## Echo
  
-This sample illustrates the basic channel operations. A [Writer](https://github.com/motoras/kekbit/blob/master/kekbit-core/examples/echo_in.rs) creates a channel than writes into it every line of text read from the console. A [Reader](https://github.com/motoras/kekbit/blob/master/kekbit-core/examples/echo_out.rs) connects to an existing channel than prints to the console every messages it reads from that channel.
+This sample illustrates the basic channel operations. A [Writer](https://github.com/motoras/kekbit/blob/master/examples/echo_in.rs) creates a channel than writes into it every line of text read from the console. A [Reader](https://github.com/motoras/kekbit/blob/master/examples/echo_out.rs) connects to an existing channel than prints to the console every messages it reads from that channel.
 The channel uses the ubicuos [plain text encoder](https://github.com/motoras/kekbit/blob/master/kekbit-codecs/src/codecs/text.rs)
  
  The *Bye* message will stop both the reader and the writer. The channel has a limit of 1000 messages of 1024 bytes each and a timeout of 30 seconds. 
  
-In order to start the *writer*, in the kekbit_core folder type:
+In order to start the *writer*, in the type:
  ```cargo run --example echo_in <channel_id>```
  
  E.g:
@@ -17,7 +17,7 @@ In order to start the *writer*, in the kekbit_core folder type:
  cargo run --example echo_in 4242
  ```
  
-After the writer had started, in a separate console start the *reader*, from the same kekbit_core folder:
+After the writer had started, in a separate console start the *reader*:
  ```cargo run --example echo_out <channel_id>```
  
  E.g:
@@ -29,9 +29,7 @@ Be sure you use the same the same *channel_id* for both programs. This example w
 
 ## Request/Reply IPC
 
-This sample illustrates a simple request/reply IPC model using kekbit channels. The [Requester](https://github.com/motoras/kekbit/blob/master/kekbit-core/examples/req.rs) creates a channel(the *requests channel*), writes requests to it than reads the replies from another channel(the *replies channel*). The [Replier](https://github.com/motoras/kekbit/blob/master/kekbit-core/examples/rep.rs) creates a channel for the replies(the *replies channel*), reads the requests from the *requests channel*, process them, and writes the replies back on the *replies channel*.
-
-The channel uses the [raw binary encoder](https://github.com/motoras/kekbit/blob/master/kekbit-codecs/src/codecs/raw.rs) but wills switch to a custom encoder in a future iteration.
+This sample illustrates a simple request/reply IPC model using kekbit channels. The [Requester](https://github.com/motoras/kekbit/blob/master/examples/req.rs) creates a channel(the *requests channel*), writes requests to it than reads the replies from another channel(the *replies channel*). The [Replier](https://github.com/motoras/kekbit/blob/master/examples/rep.rs) creates a channel for the replies(the *replies channel*), reads the requests from the *requests channel*, process them, and writes the replies back on the *replies channel*.
 
 In order to run the sample, start the requester and the repliers in separate consoles with the following commands:
 
@@ -51,7 +49,7 @@ To avoid unspecified behaviour before reruning the sample, you should either del
 This is a more complete version of the echo application. Two users will start each one an instance of the [chat application](https://github.com/motoras/kekbit/blob/master/kekbit-core/examples/chat.rs), and will be able to exchange messages by typing them into the console. In a more complex scenario you could have a chain of users talking, each reading from a channel and writing in a different one. 
 The *Bye* message will stop the conversation.
 
-In order to start a caht instance, in the kekbit_core folder type:
+In order to start a chst instance type:
  ```cargo run --example chat <channel_id_1> <channel_id_2>```
  
  E.g:
