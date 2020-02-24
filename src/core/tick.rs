@@ -22,7 +22,7 @@ impl TickUnit {
     ///
     /// # Examples
     /// ```
-    /// use kekbit_core::tick::TickUnit::*;
+    /// use kekbit::core::TickUnit::*;
     ///
     /// assert_eq!(Nanos.id(), 9);
     /// assert_eq!(Micros.id(), 6);
@@ -66,7 +66,7 @@ impl TickUnit {
     ///
     /// ```
     /// use std::time::Duration;
-    /// use kekbit_core::tick::TickUnit::*;
+    /// use kekbit::core::TickUnit::*;
     ///
     ///let duration = Duration::new(1, 500_000_000); //1 sec and a half
     ///assert_eq!(Nanos.convert(duration), 1_500_000_000);
@@ -87,7 +87,7 @@ impl TickUnit {
     ///
     /// # Examples
     ///  ```
-    /// use kekbit_core::tick::TickUnit::*;
+    /// use kekbit::core::TickUnit::*;
     ///
     /// println!("{}ms since January 1, 1970 UTC", Millis.nix_time());
     /// ```

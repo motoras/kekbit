@@ -1,7 +1,7 @@
+use super::utils::{align, store_atomic_u64, CLOSE, REC_HEADER_LEN, WATERMARK};
+use super::Metadata;
 use crate::api::ChannelError::AccessError;
 use crate::api::{ChannelError, Encodable, WriteError, Writer};
-use crate::header::Header;
-use crate::utils::{align, store_atomic_u64, CLOSE, REC_HEADER_LEN, WATERMARK};
 use log::{debug, error, info};
 use memmap::MmapMut;
 use std::cmp::min;
@@ -20,23 +20,23 @@ use std::sync::atomic::Ordering;
 /// # Examples
 ///
 /// ```
-/// use kekbit_core::tick::TickUnit::Nanos;
-/// use kekbit_core::shm::*;
-/// use kekbit_core::header::Header;
-/// use kekbit_core::api::Writer;
+/// use kekbit::core::TickUnit::Nanos;
+/// use kekbit::core::*;
+/// use kekbit::core::Metadata;
+/// use kekbit::api::Writer;
 ///
 /// const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
 /// let channel_id = 42;
 /// let capacity = 3000;
 /// let max_msg_len = 100;
-/// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
+/// let metadata = Metadata::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-/// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+/// let mut writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
 /// writer.heartbeat().unwrap();
 /// ```
 pub struct ShmWriter {
-    header: Header,
+    metadata: Metadata,
     data_ptr: *mut u8,
     write_offset: u32,
     mmap: MmapMut,
@@ -47,13 +47,13 @@ impl ShmWriter {
     #[allow(clippy::cast_ptr_alignment)]
     pub(super) fn new(mut mmap: MmapMut) -> Result<ShmWriter, ChannelError> {
         let buf = &mut mmap[..];
-        let header = Header::read(buf)?;
-        let header_ptr = buf.as_ptr() as *mut u64;
-        let head_len = header.len();
-        let data_ptr = unsafe { header_ptr.add(head_len) } as *mut u8;
-        let write = KekWrite::new(data_ptr, header.max_msg_len() as usize);
+        let metadata = Metadata::read(buf)?;
+        let metadata_ptr = buf.as_ptr() as *mut u64;
+        let head_len = metadata.len();
+        let data_ptr = unsafe { metadata_ptr.add(head_len) } as *mut u8;
+        let write = KekWrite::new(data_ptr, metadata.max_msg_len() as usize);
         let mut writer = ShmWriter {
-            header,
+            metadata,
             data_ptr,
             write_offset: 0,
             mmap,
@@ -61,8 +61,8 @@ impl ShmWriter {
         };
         info!(
             "Kekbit channel writer created. Size is {}MB. Max msg size {}KB",
-            writer.header.capacity() / 1_000_000,
-            writer.header.max_msg_len() / 1_000
+            writer.metadata.capacity() / 1_000_000,
+            writer.metadata.max_msg_len() / 1_000
         );
         //sent the very first original heart bear
         match writer.heartbeat() {
@@ -105,19 +105,18 @@ impl Writer for ShmWriter {
     /// # Examples
     ///
     /// ```
-    /// use kekbit_core::tick::TickUnit::Nanos;
-    /// use kekbit_core::shm::*;
-    /// use kekbit_core::header::Header;
-    /// use kekbit_core::api::Writer;
+    /// use kekbit::core::TickUnit::Nanos;
+    /// use kekbit::core::*;
+    /// use kekbit::api::Writer;
     ///
     /// const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
     /// let channel_id = 42;
     /// let capacity = 30_000;
     /// let max_msg_len = 100;
-    /// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
+    /// let metadata = Metadata::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-    /// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+    /// let mut writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
     /// let msg = "There are 10 kinds of people: those who know binary and those who don't";
     /// let msg_data = msg.as_bytes();
     /// writer.write(&msg_data).unwrap();
@@ -131,7 +130,7 @@ impl Writer for ShmWriter {
         if available <= REC_HEADER_LEN {
             return Err(WriteError::ChannelFull);
         }
-        let len = min(self.header.max_msg_len(), available - REC_HEADER_LEN) as usize;
+        let len = min(self.metadata.max_msg_len(), available - REC_HEADER_LEN) as usize;
         let write_res = data.encode(self.write.reset(write_ptr, len));
         match write_res {
             Ok(_) => {
@@ -184,19 +183,18 @@ impl Writer for ShmWriter {
     /// # Examples
     ///
     /// ```
-    /// use kekbit_core::tick::TickUnit::Nanos;
-    /// use kekbit_core::shm::*;
-    /// use kekbit_core::header::Header;
-    /// use kekbit_core::api::Writer;
+    /// use kekbit::core::TickUnit::Nanos;
+    /// use kekbit::core::*;
+    /// use kekbit::api::Writer;
     ///
     /// const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
     /// let channel_id = 42;
     /// let capacity = 30_000;
     /// let max_msg_len = 100;
-    /// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
+    /// let metadata = Metadata::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-    /// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+    /// let mut writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
     /// let msg = "There are 10 kinds of people: those who know binary and those who don't";
     /// let msg_data = msg.as_bytes();
     /// writer.write(&msg_data).unwrap();
@@ -232,7 +230,7 @@ impl ShmWriter {
     ///Returns the amount of space in this channel still available for write.
     #[inline]
     pub fn available(&self) -> u32 {
-        (self.header.capacity() - self.write_offset) & 0xFFFF_FFF8 //rounded down to alignement
+        (self.metadata.capacity() - self.write_offset) & 0xFFFF_FFF8 //rounded down to alignement
     }
     ///Returns the amount of data written into this channel.
     #[inline]
@@ -240,10 +238,10 @@ impl ShmWriter {
         self.write_offset
     }
 
-    ///Returns a reference to the [Header](struct.Header.html) associated with this channel.
+    ///Returns a reference to the [Metadata](struct.Metadata.html) associated with this channel.
     #[inline]
-    pub fn header(&self) -> &Header {
-        &self.header
+    pub fn metadata(&self) -> &Metadata {
+        &self.metadata
     }
 }
 

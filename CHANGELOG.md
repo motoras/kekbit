@@ -1,19 +1,22 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
-
-## [0.2.4] In development
+## [0.3.0] In development
 
 ### Added
-- Decodable trait
-- Decodable support for RawBinDataFormat and PlainTextDataFormat
 - Non-blocking Iterator access for ShmReader
+- The `exhausted` method in ShmReader which tell us if a channel still provide records or not.
+- Major refactoring of the various modules
 
 ### Changed
+- Header struct was renamed Metadata
 - Error handling in ShmWriter
 - Encodable trait returns Result
 - The read method in Reader was renamed try_read, requires no callback handler, and returns an Option wrapped in a Result
+
+### Removed
+- The codecs subcrate
+- The core subcrate
+- DataFormat structure
 
 
 ## [0.2.3] 2020-02-18

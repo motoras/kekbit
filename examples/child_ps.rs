@@ -1,8 +1,6 @@
-use kekbit_core::api::ReadError::*;
-use kekbit_core::api::{Reader, Writer};
-use kekbit_core::header::Header;
-use kekbit_core::shm::{shm_writer, storage_path, try_shm_reader};
-use kekbit_core::tick::TickUnit;
+use kekbit::api::ReadError::*;
+use kekbit::api::{Reader, Writer};
+use kekbit::core::*;
 use std::process::exit;
 
 use log::{error, info};
@@ -18,8 +16,8 @@ const Q_PATH: &str = "/dev/shm";
 pub fn run_writer() -> Result<(), ()> {
     info!("Creating writer process ...{}", getpid());
     let chunk_size = 100;
-    let header = Header::new(100, 1000, chunk_size * (ITERATIONS + 100), 1000, 99999999999, TickUnit::Nanos);
-    let mut writer = shm_writer(&Path::new(Q_PATH), &header).unwrap();
+    let metadata = Metadata::new(100, 1000, chunk_size * (ITERATIONS + 100), 1000, 99999999999, TickUnit::Nanos);
+    let mut writer = shm_writer(&Path::new(Q_PATH), &metadata).unwrap();
     let msg_bytes = "There are 10 kinds of people: those who know binary and those who don't".as_bytes();
     // let msgs: Vec<&str> = "There are 10 kinds of people: those who know binary and those who don't"
     //     .split_whitespace()

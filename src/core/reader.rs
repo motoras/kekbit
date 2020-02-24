@@ -1,7 +1,7 @@
+use super::utils::{align, load_atomic_u64, CLOSE, REC_HEADER_LEN, U64_SIZE, WATERMARK};
+use super::Metadata;
 use crate::api::ReadError::*;
 use crate::api::{ChannelError, ReadError, Reader};
-use crate::header::Header;
-use crate::utils::{align, load_atomic_u64, CLOSE, REC_HEADER_LEN, U64_SIZE, WATERMARK};
 use log::{error, info, warn};
 use memmap::MmapMut;
 use std::cmp::Ordering::*;
@@ -17,22 +17,21 @@ const END_OF_TIME: u64 = std::u64::MAX; //this should be good for any time unit 
 /// # Examples
 ///
 /// ```
-/// # use kekbit_core::tick::TickUnit::Nanos;
-/// # use kekbit_core::header::Header;
-/// use kekbit_core::shm::*;
+/// # use kekbit::core::TickUnit::Nanos;
+/// use kekbit::core::*;
 /// # const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
 /// let channel_id = 42;
-/// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
+/// # let metadata = Metadata::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-/// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+/// # let writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
 /// let reader = shm_reader(&test_tmp_dir.path(), channel_id).unwrap();
-/// println!("{:?}", reader.header());
+/// println!("{:?}", reader.metadata());
 ///
 /// ```
 #[derive(Debug)]
 pub struct ShmReader {
-    header: Header,
+    metadata: Metadata,
     data_ptr: *const u8,
     read_index: u32,
     expiration: u64,
@@ -44,12 +43,12 @@ impl ShmReader {
     #[allow(clippy::cast_ptr_alignment)]
     pub(super) fn new(mut mmap: MmapMut) -> Result<ShmReader, ChannelError> {
         let buf = &mut mmap[..];
-        let header = Header::read(buf)?;
-        let header_ptr = buf.as_ptr() as *mut u64;
-        let data_ptr = unsafe { header_ptr.add(header.len() as usize) } as *const u8;
+        let metadata = Metadata::read(buf)?;
+        let metadata_ptr = buf.as_ptr() as *mut u64;
+        let data_ptr = unsafe { metadata_ptr.add(metadata.len() as usize) } as *const u8;
         info!("Kekbit Reader successfully created");
         Ok(ShmReader {
-            header,
+            metadata,
             data_ptr,
             read_index: 0,
             expiration: END_OF_TIME,
@@ -57,10 +56,10 @@ impl ShmReader {
             _mmap: mmap,
         })
     }
-    ///Returns a reference to the [Header](struct.Header.html) associated with this channel
+    ///Returns a reference to the [Metadata](struct.Metadata.html) associated with this channel
     #[inline]
-    pub fn header(&self) -> &Header {
-        &self.header
+    pub fn metadata(&self) -> &Metadata {
+        &self.metadata
     }
     ///Returns the current read position. It is also the `total` amount of bytes read
     ///so far(including bytes from record headers and the one used for record padding)
@@ -68,7 +67,7 @@ impl ShmReader {
         self.read_index
     }
 
-    /// Returns A non-blocking iterator over messages in the channel.
+    /// Returns A *non-blocking* iterator over messages in the channel.
     ///
     /// Each call to [`next`] returns a message if there is one ready available. The iterator
     /// will never block waiting for a message to be available.
@@ -126,16 +125,15 @@ impl Reader for ShmReader {
     /// # Examples
     ///
     /// ```
-    /// # use kekbit_core::tick::TickUnit::Nanos;
-    /// # use kekbit_core::header::Header;
-    /// use kekbit_core::shm::*;
-    /// use crate::kekbit_core::api::Reader;
+    /// # use kekbit::core::TickUnit::Nanos;
+    /// use kekbit::core::*;
+    /// use crate::kekbit::api::Reader;
     /// # const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
     /// let channel_id = 42;
-    /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
+    /// # let metadata = Metadata::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-    /// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+    /// # let writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
     /// let mut reader = shm_reader(&test_tmp_dir.path(), channel_id).unwrap();
     /// match reader.try_read() {
     ///        Ok(Some(buf)) =>println!("Read {}", std::str::from_utf8(buf).unwrap()),
@@ -151,11 +149,11 @@ impl Reader for ShmReader {
             //will simply skip all the hearbeats. We may add  a limit of the heartbeats we skip in the future if
             //they proof to be too many.
             let crt_index = self.read_index as usize;
-            debug_assert!(crt_index + U64_SIZE < self.header.capacity() as usize);
+            debug_assert!(crt_index + U64_SIZE < self.metadata.capacity() as usize);
             let rec_len: u64 = unsafe { load_atomic_u64(self.data_ptr.add(crt_index) as *mut u64, Ordering::Acquire) };
-            if rec_len <= self.header.max_msg_len() as u64 {
+            if rec_len <= self.metadata.max_msg_len() as u64 {
                 let rec_size = align(REC_HEADER_LEN + rec_len as u32);
-                debug_assert!((crt_index + rec_size as usize) < self.header.capacity() as usize);
+                debug_assert!((crt_index + rec_size as usize) < self.metadata.capacity() as usize);
                 self.expiration = END_OF_TIME;
                 self.read_index += rec_size;
                 if rec_len > 0 {
@@ -170,7 +168,7 @@ impl Reader for ShmReader {
             } else {
                 return match rec_len {
                     WATERMARK => {
-                        let tick = self.header.tick_unit().nix_time();
+                        let tick = self.metadata.tick_unit().nix_time();
                         match self.expiration.cmp(&tick) {
                             Less | Equal => {
                                 warn!("Writer timeout detected. Channel will be abandoned. No more reads will be performed");
@@ -178,7 +176,7 @@ impl Reader for ShmReader {
                             }
                             Greater => {
                                 if self.expiration == END_OF_TIME {
-                                    self.expiration = tick + self.header.timeout();
+                                    self.expiration = tick + self.metadata.timeout();
                                 }
                                 Ok(None)
                             }
@@ -200,7 +198,8 @@ impl Reader for ShmReader {
         }
     }
 
-    ///Find out if the channel is exhausted and what was the reason to be marked as `exhausted`.
+    ///Check if the channel is exhausted and what was the reason of exhaustion.
+    /// Could be also use to check if an iterator will ever yield a record again.
     #[inline]
     fn exhausted(&self) -> Option<ReadError> {
         self.failure
@@ -208,7 +207,7 @@ impl Reader for ShmReader {
 }
 
 ///A non-blocking iterator over messages in the channel.
-///Each call to next returns a message if there is one ready to be received.
+///Each call to `next` returns a message if there is one ready to be received.
 ///The iterator never blocks waiting for a message.
 pub struct TryIter<'a> {
     inner: &'a mut ShmReader,
@@ -228,7 +227,7 @@ impl<'a> Iterator for TryIter<'a> {
             None
         }
     }
-    ///Returns (0,None) if records may be still available in the channel or (0,Some(0)) if
+    ///Returns (0, None) if records may be still available in the channel or (0, Some(0)) if
     ///the channel is exhausted. Use this method if you want to know if future `next` calls will ever produce more items.
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -239,14 +238,3 @@ impl<'a> Iterator for TryIter<'a> {
         }
     }
 }
-
-// impl<'a> IntoIterator for &'a mut ShmReader {
-//     type Item = IterResult<&'a [u8]>;
-//     type IntoIter = Iter<'a>;
-//     fn into_iter(self) -> Self::IntoIter {
-//         Iter {
-//             inner: self,
-//             available: true,
-//         }
-//     }
-// }

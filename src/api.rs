@@ -1,8 +1,8 @@
-//! Defines read and write operations for a kekbit channel.
+//! Defines the general kekbit access protocol, based on the [Reader](api/trait.Reader.html) and [Writer](api/trait.Writer.html) traits.
 use std::io::Error;
 use std::io::Write;
 
-///An entity which can be written in a channel
+///An entity which can be written inside a channel
 pub trait Encodable {
     ///Encodes an object into a `Write`. If during
     ///the encoding operation an IO error occurs the operation should be cancelled.
@@ -97,7 +97,7 @@ pub enum WriteError {
 ///The `Writer` trait allows writing chunk of bytes as records into a kekbit channel.
 /// Implementers of this trait are called 'kekbit writers'. Usually a writer is bound to
 /// a given channel, and it is expected that there is only one writer which directly writes into the channel, however
-/// multiple writers may cooperate during the writing process. For any given channel a  [DataFormat](../codecs/trait.DataFormat.html) must be specified.
+/// multiple writers may cooperate during the writing process.
 pub trait Writer {
     /// Writes a given record to a kekbit channel.
     ///

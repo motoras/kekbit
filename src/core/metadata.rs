@@ -1,14 +1,14 @@
-//!Handles metadata associated with a channel.
+//!Provides access to metadata associated with a channel.
+use super::utils::{align, is_aligned, REC_HEADER_LEN};
+use super::version::Version;
+use super::TickUnit;
 use crate::api::ChannelError;
 use crate::api::ChannelError::{IncompatibleVersion, InvalidCapacity, InvalidMaxMessageLength, InvalidSignature};
-use crate::tick::TickUnit;
-use crate::utils::{align, is_aligned, REC_HEADER_LEN};
-use crate::version::Version;
 use std::cmp::max;
 use std::cmp::min;
 
 const MIN_CAPACITY: u32 = 1024 * 16;
-const HEADER_LEN: usize = 128;
+const METADATA_LEN: usize = 128;
 const SIGNATURE: u64 = 0x2A54_4942_4B45_4B2A; //"*KEKBIT*" as bytes as u64
 
 #[inline]
@@ -19,7 +19,7 @@ const fn compute_max_msg_len(capacity: u32) -> u32 {
 
 /// Defines and validates the metadata associated with a channel.
 #[derive(PartialEq, Eq, Debug)]
-pub struct Header {
+pub struct Metadata {
     writer_id: u64,
     channel_id: u64,
     capacity: u32,
@@ -31,8 +31,8 @@ pub struct Header {
 }
 
 #[allow(clippy::len_without_is_empty)]
-impl Header {
-    /// Defines a new channel header.
+impl Metadata {
+    /// Defines a new channel metadata.
     ///
     /// Return a struct that contains all the metadata required to be associated with a new channel.
     ///
@@ -50,8 +50,8 @@ impl Header {
     /// # Example
     ///
     /// ```
-    /// use kekbit_core::tick::TickUnit::Nanos;
-    /// use kekbit_core::header::*;
+    /// use kekbit::core::TickUnit::Nanos;
+    /// use kekbit::core::*;
     ///     
     /// let producer_id: u64 = 111;
     /// let channel_id: u64 = 101;
@@ -59,8 +59,8 @@ impl Header {
     /// let max_msg_len: u32 = 100;
     /// let timeout: u64 = 10_000;
     /// let tick_unit = Nanos;
-    /// let header = Header::new(channel_id, producer_id, capacity, max_msg_len, timeout, tick_unit);
-    /// println!("{:?}", &header);
+    /// let metadata = Metadata::new(channel_id, producer_id, capacity, max_msg_len, timeout, tick_unit);
+    /// println!("{:?}", &metadata);
     /// ````
     ///
     ///
@@ -72,11 +72,11 @@ impl Header {
         max_msg_len_hint: u32,
         timeout: u64,
         tick_unit: TickUnit,
-    ) -> Header {
+    ) -> Metadata {
         let capacity = max(MIN_CAPACITY, align(capacity_hint));
         let max_msg_len = align(min(max_msg_len_hint + REC_HEADER_LEN, compute_max_msg_len(capacity)) as u32);
         let creation_time = tick_unit.nix_time();
-        Header {
+        Metadata {
             writer_id,
             channel_id,
             capacity,
@@ -93,7 +93,7 @@ impl Header {
     ///
     /// # Arguments
     ///
-    /// * `header` - Reference to a  byte array which should contain metadata associated with a given channel.
+    /// * `metadata` - Reference to a  byte array which should contain metadata associated with a given channel.
     ///              Usually points at the beginning of a memory mapped file used as storage for a kekbit channel.
     ///
     /// # Errors
@@ -106,16 +106,16 @@ impl Header {
     /// use memmap::MmapOptions;
     /// use std::fs::OpenOptions;
     ///
-    /// # use kekbit_core::tick::TickUnit::Nanos;
-    /// # use kekbit_core::header::Header;
-    /// use kekbit_core::shm::*;
+    /// # use kekbit::core::TickUnit::Nanos;
+    /// # use kekbit::core::Metadata;
+    /// use kekbit::core::*;
     /// # const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
     /// let channel_id = 4242;
-    /// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
+    /// # let metadata = Metadata::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
     /// let dir_path = test_tmp_dir.path();
-    ///  # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+    ///  # let writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
     ///
     /// let kek_file_name = storage_path(dir_path, channel_id);
     /// let kek_file = OpenOptions::new()
@@ -124,14 +124,14 @@ impl Header {
     ///  .open(&kek_file_name).unwrap();
     ///  let mut mmap = unsafe { MmapOptions::new().map_mut(&kek_file) }.unwrap();
     ///  let buf = &mut mmap[..];
-    ///  let header = Header::read(buf).unwrap();
-    ///  println!("{:?}", &header);
+    ///  let metadata = Metadata::read(buf).unwrap();
+    ///  println!("{:?}", &metadata);
     ///  ```
     ///    
-    pub fn read(header: &[u8]) -> Result<Header, ChannelError> {
-        assert!(header.len() >= HEADER_LEN);
+    pub fn read(metadata: &[u8]) -> Result<Metadata, ChannelError> {
+        assert!(metadata.len() >= METADATA_LEN);
         let mut offset = 0;
-        let signature = Header::read_u64(header, offset);
+        let signature = Metadata::read_u64(metadata, offset);
         if signature != SIGNATURE {
             return Err(InvalidSignature {
                 expected: SIGNATURE,
@@ -139,7 +139,7 @@ impl Header {
             });
         }
         offset += 8;
-        let version: Version = Header::read_u64(header, 8).into();
+        let version: Version = Metadata::read_u64(metadata, 8).into();
         let latest = Version::latest();
         if !latest.is_compatible(version) {
             return Err(IncompatibleVersion {
@@ -148,11 +148,11 @@ impl Header {
             });
         }
         offset += 8;
-        let writer_id = Header::read_u64(header, offset);
+        let writer_id = Metadata::read_u64(metadata, offset);
         offset += 8;
-        let channel_id = Header::read_u64(header, offset);
+        let channel_id = Metadata::read_u64(metadata, offset);
         offset += 8;
-        let capacity = Header::read_u32(header, offset);
+        let capacity = Metadata::read_u32(metadata, offset);
         if capacity < MIN_CAPACITY {
             return Err(InvalidCapacity {
                 capacity,
@@ -166,7 +166,7 @@ impl Header {
             });
         }
         offset += 4;
-        let max_msg_len = Header::read_u32(header, offset);
+        let max_msg_len = Metadata::read_u32(metadata, offset);
         if max_msg_len > align(compute_max_msg_len(capacity)) {
             return Err(InvalidMaxMessageLength {
                 msg_len: max_msg_len,
@@ -180,13 +180,13 @@ impl Header {
             });
         }
         offset += 4;
-        let timeout = Header::read_u64(header, offset);
+        let timeout = Metadata::read_u64(metadata, offset);
         offset += 8;
-        let creation_time = Header::read_u64(header, offset);
+        let creation_time = Metadata::read_u64(metadata, offset);
         offset += 8;
-        let tick_unit = TickUnit::from_id(header[offset]);
+        let tick_unit = TickUnit::from_id(metadata[offset]);
         //offset += 1;
-        Ok(Header {
+        Ok(Metadata {
             version,
             writer_id,
             channel_id,
@@ -203,7 +203,7 @@ impl Header {
     ///
     /// # Arguments
     ///
-    /// * `header` - Reference to a byte slice where metadata must be written.
+    /// * `metadata` - Reference to a byte slice where metadata must be written.
     ///              Usually points at the beginning of a memory mapped file used as storage for a kekbit channel.
     ///
     /// # Example
@@ -212,9 +212,9 @@ impl Header {
     /// use memmap::MmapOptions;
     /// use std::fs::OpenOptions;
     ///
-    /// use kekbit_core::tick::TickUnit::Nanos;
-    /// use kekbit_core::header::Header;
-    /// use kekbit_core::shm::*;
+    /// use kekbit::core::TickUnit::Nanos;
+    /// use kekbit::core::Metadata;
+    /// use kekbit::core::*;
     /// use std::fs::DirBuilder;
     ///
     /// const FOREVER: u64 = 99_999_999_999;
@@ -234,53 +234,58 @@ impl Header {
     /// .open(&kek_file_name)
     /// .or_else(|err| Err(err.to_string())).unwrap();
     ///
-    /// let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
-    /// let total_len = (header.capacity() + header.len() as u32) as u64;
+    /// let metadata = Metadata::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
+    /// let total_len = (metadata.capacity() + metadata.len() as u32) as u64;
     /// kek_file.set_len(total_len).or_else(|err| Err(err.to_string())).unwrap();
     /// let mut mmap = unsafe { MmapOptions::new().map_mut(&kek_file) }.unwrap();
     /// let buf = &mut mmap[..];
-    /// header.write_to(buf);
+    /// metadata.write_to(buf);
     /// mmap.flush().unwrap();
     /// ```
     #[inline]
-    pub fn write_to(&self, header: &mut [u8]) -> usize {
-        assert!(self.len() <= header.len());
-        header[0..8].clone_from_slice(&SIGNATURE.to_le_bytes());
+    pub fn write_to(&self, metadata: &mut [u8]) -> usize {
+        assert!(self.len() <= metadata.len());
+        metadata[0..8].clone_from_slice(&SIGNATURE.to_le_bytes());
         let latest_v: u64 = Version::latest().into();
-        header[8..16].clone_from_slice(&latest_v.to_le_bytes());
-        header[16..24].clone_from_slice(&self.writer_id.to_le_bytes());
-        header[24..32].clone_from_slice(&self.channel_id.to_le_bytes());
-        header[32..36].clone_from_slice(&self.capacity.to_le_bytes());
-        header[36..40].clone_from_slice(&self.max_msg_len.to_le_bytes());
-        header[40..48].clone_from_slice(&self.timeout.to_le_bytes());
-        header[48..56].clone_from_slice(&self.creation_time.to_le_bytes());
-        header[56] = self.tick_unit.id();
+        metadata[8..16].clone_from_slice(&latest_v.to_le_bytes());
+        metadata[16..24].clone_from_slice(&self.writer_id.to_le_bytes());
+        metadata[24..32].clone_from_slice(&self.channel_id.to_le_bytes());
+        metadata[32..36].clone_from_slice(&self.capacity.to_le_bytes());
+        metadata[36..40].clone_from_slice(&self.max_msg_len.to_le_bytes());
+        metadata[40..48].clone_from_slice(&self.timeout.to_le_bytes());
+        metadata[48..56].clone_from_slice(&self.creation_time.to_le_bytes());
+        metadata[56] = self.tick_unit.id();
         let last = 57;
-        for item in header.iter_mut().take(HEADER_LEN).skip(last) {
+        for item in metadata.iter_mut().take(METADATA_LEN).skip(last) {
             *item = 0u8;
         }
         self.len()
     }
 
     #[inline]
-    fn read_u64(header: &[u8], offset: usize) -> u64 {
-        assert!(offset + 8 < HEADER_LEN);
+    fn read_u64(metadata: &[u8], offset: usize) -> u64 {
+        assert!(offset + 8 < METADATA_LEN);
         u64::from_le_bytes([
-            header[offset],
-            header[offset + 1],
-            header[offset + 2],
-            header[offset + 3],
-            header[offset + 4],
-            header[offset + 5],
-            header[offset + 6],
-            header[offset + 7],
+            metadata[offset],
+            metadata[offset + 1],
+            metadata[offset + 2],
+            metadata[offset + 3],
+            metadata[offset + 4],
+            metadata[offset + 5],
+            metadata[offset + 6],
+            metadata[offset + 7],
         ])
     }
 
     #[inline]
-    fn read_u32(header: &[u8], offset: usize) -> u32 {
-        assert!(offset + 4 < HEADER_LEN);
-        u32::from_le_bytes([header[offset], header[offset + 1], header[offset + 2], header[offset + 3]])
+    fn read_u32(metadata: &[u8], offset: usize) -> u32 {
+        assert!(offset + 4 < METADATA_LEN);
+        u32::from_le_bytes([
+            metadata[offset],
+            metadata[offset + 1],
+            metadata[offset + 2],
+            metadata[offset + 3],
+        ])
     }
 
     ///Returns the metadata version
@@ -332,7 +337,7 @@ impl Header {
     ///Returns  the length of the metadata. For any given version the length is the same.
     ///In the current version it is 128 bytes.
     pub const fn len(&self) -> usize {
-        HEADER_LEN
+        METADATA_LEN
     }
 }
 
@@ -340,17 +345,17 @@ impl Header {
 mod tests {
     use super::*;
     #[test]
-    fn check_read_write_header() {
+    fn check_read_write_metadata() {
         let producer_id: u64 = 111;
         let channel_id: u64 = 101;
         let capacity: u32 = 10_001;
         let max_msg_len: u32 = 100;
         let timeout: u64 = 10_000;
         let tick_unit = TickUnit::Nanos;
-        let head = Header::new(producer_id, channel_id, capacity, max_msg_len, timeout, tick_unit);
-        let mut data = vec![0u8; HEADER_LEN];
-        assert!(head.write_to(&mut data) == HEADER_LEN);
-        assert!(Header::read(&data).unwrap() == head);
+        let head = Metadata::new(producer_id, channel_id, capacity, max_msg_len, timeout, tick_unit);
+        let mut data = vec![0u8; METADATA_LEN];
+        assert!(head.write_to(&mut data) == METADATA_LEN);
+        assert!(Metadata::read(&data).unwrap() == head);
         assert_eq!(head.tick_unit(), TickUnit::Nanos);
         assert_eq!(head.timeout(), timeout);
         assert_eq!(head.version(), Version::latest().to_string());

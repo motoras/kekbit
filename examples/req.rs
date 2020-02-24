@@ -3,12 +3,10 @@
 //! a request id, and 2 values which the repliers is suppose to sum them up.
 //! In order to start the requester type cargo run --example req <request_channel_id> <reply_channel_id>
 use crossbeam::utils::Backoff;
-use kekbit_core::api::Reader;
-use kekbit_core::api::Writer;
-use kekbit_core::header::Header;
-use kekbit_core::shm::shm_writer;
-use kekbit_core::shm::try_shm_reader;
-use kekbit_core::tick::TickUnit::Secs;
+use kekbit::api::Reader;
+use kekbit::api::Writer;
+use kekbit::core::TickUnit::Secs;
+use kekbit::core::*;
 use std::collections::HashSet;
 
 #[inline]
@@ -35,9 +33,9 @@ fn main() {
     let timeout_secs = 10; //channel times out in 10 secs
     let tmp_dir = std::env::temp_dir().join("kekbit").join("req_rep");
     let max_msg_size = 1024;
-    let header = Header::new(req_id, req_channel_id, max_msg_size * 1000, max_msg_size, timeout_secs, Secs);
+    let metadata = Metadata::new(req_id, req_channel_id, max_msg_size * 1000, max_msg_size, timeout_secs, Secs);
     //creates the channel where the requests will be sent together with the associated writer
-    let mut writer = shm_writer(&tmp_dir, &header).unwrap();
+    let mut writer = shm_writer(&tmp_dir, &metadata).unwrap();
     //tries to connect to the channel from where the replies will be read
     let reader_rep = try_shm_reader(&tmp_dir, reply_channel_id, 15000, 45);
     if reader_rep.is_err() {

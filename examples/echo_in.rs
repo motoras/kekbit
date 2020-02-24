@@ -2,10 +2,9 @@
 //! the console. The maximum message size is 1024, the channel size is bound to 1000 such messages.
 //! The channel will timeout after 30 seconds of inactivity.
 //! Start it with the following command echo_in <channel_id>
-use kekbit_core::api::Writer;
-use kekbit_core::header::Header;
-use kekbit_core::shm::shm_writer;
-use kekbit_core::tick::TickUnit::Secs;
+use kekbit::api::Writer;
+use kekbit::core::TickUnit::Secs;
+use kekbit::core::*;
 
 fn main() {
     let args: Vec<u64> = std::env::args().skip(1).map(|id| id.parse().unwrap()).collect();
@@ -15,8 +14,8 @@ fn main() {
     let channel_id = args[0];
     let tmp_dir = std::env::temp_dir().join("kekbit").join("echo_sample");
     let max_msg_size = 1024;
-    let header = Header::new(writer_id, channel_id, max_msg_size * 1000, max_msg_size, timeout_secs, Secs);
-    let mut writer = shm_writer(&tmp_dir, &header).unwrap();
+    let metadata = Metadata::new(writer_id, channel_id, max_msg_size * 1000, max_msg_size, timeout_secs, Secs);
+    let mut writer = shm_writer(&tmp_dir, &metadata).unwrap();
     let mut last_msg_time = Secs.nix_time();
     loop {
         let mut input = String::new();

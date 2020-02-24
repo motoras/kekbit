@@ -4,11 +4,9 @@
 //! u64 values: the id of the request and the sum of the two values from request.
 //! In order to start the replier type cargo run --example rep <reply_channel_id> <request_channel_id>
 use crossbeam::utils::Backoff;
-use kekbit_core::api::Writer;
-use kekbit_core::header::Header;
-use kekbit_core::shm::shm_writer;
-use kekbit_core::shm::try_shm_reader;
-use kekbit_core::tick::TickUnit::Secs;
+use kekbit::api::Writer;
+use kekbit::core::TickUnit::Secs;
+use kekbit::core::*;
 
 #[inline]
 fn read_u64(data: &[u8], offset: usize) -> u64 {
@@ -34,7 +32,7 @@ fn main() {
     let timeout_secs = 10; //channel times out in 10 secs
     let tmp_dir = std::env::temp_dir().join("kekbit").join("req_rep");
     let max_msg_size = 1024;
-    let header = Header::new(
+    let metadata = Metadata::new(
         rep_id,
         reply_channel_id,
         max_msg_size * 1000,
@@ -43,7 +41,7 @@ fn main() {
         Secs,
     );
     //creates the channel where the replies will be sent together with the associated writer
-    let mut writer = shm_writer(&tmp_dir, &header).unwrap();
+    let mut writer = shm_writer(&tmp_dir, &metadata).unwrap();
     //tries to connect to the channel where the requests are pushed
     let reader_rep = try_shm_reader(&tmp_dir, req_channel_id, 15000, 45);
     if reader_rep.is_err() {

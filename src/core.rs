@@ -1,20 +1,27 @@
-//! Defines operations to create readers and writers backed by a memory mapped channel.
-pub mod reader;
-use reader::ShmReader;
-pub mod writer;
-use crate::header::Header;
+//! Provides the components and functions required to work with memory mapped data channels.
+mod metadata;
+mod reader;
+mod tick;
+mod utils;
+mod version;
+mod writer;
+
+pub use metadata::*;
+pub use reader::*;
+pub use tick::*;
+pub use writer::*;
+
 use log::{error, info};
 use memmap::MmapOptions;
 
 use crate::api::ChannelError;
 use crate::api::ChannelError::*;
 
-use crate::utils::FOOTER_LEN;
+use crate::core::utils::FOOTER_LEN;
 use std::fs::OpenOptions;
 use std::fs::{remove_file, DirBuilder};
 use std::path::Path;
 use std::result::Result;
-use writer::ShmWriter;
 /// Creates a kekbit reader associated to a memory mapped channel.
 ///
 /// Returns a ready to use reader which points to the beginning of a kekbit channel if succeeds, or an error if the operation fails.
@@ -27,22 +34,21 @@ use writer::ShmWriter;
 ///
 /// # Errors
 ///
-/// Various [errors](enum.ChannelError.html) may occur if the operation fails.
+/// Various [errors](../api/enum.ChannelError.html) may occur if the operation fails.
 ///
 /// # Examples
 ///
 /// ```
-/// # use kekbit_core::tick::TickUnit::Nanos;
-/// # use kekbit_core::header::Header;
-/// use kekbit_core::shm::*;
+/// # use kekbit::core::TickUnit::Nanos;
+/// use kekbit::core::*;
 /// # const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
 /// let channel_id = 42;
-/// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
+/// # let metadata = Metadata::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-/// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+/// # let writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
 /// let reader = shm_reader(&test_tmp_dir.path(), channel_id).unwrap();
-/// println!("{:?}", reader.header());
+/// println!("{:?}", reader.metadata());
 ///
 /// ```
 pub fn shm_reader(root_path: &Path, channel_id: u64) -> Result<ShmReader, ChannelError> {
@@ -58,7 +64,6 @@ pub fn shm_reader(root_path: &Path, channel_id: u64) -> Result<ShmReader, Channe
             file_name: kek_file_path.to_str().unwrap().to_string(),
         });
     }
-
     let kek_file = OpenOptions::new()
         .write(true)
         .read(true)
@@ -99,19 +104,18 @@ pub fn shm_reader(root_path: &Path, channel_id: u64) -> Result<ShmReader, Channe
 /// # Examples
 ///
 /// ```
-/// # use kekbit_core::tick::TickUnit::Nanos;
-/// # use kekbit_core::header::Header;
-/// use kekbit_core::shm::*;
+/// # use kekbit::core::TickUnit::Nanos;
+/// use kekbit::core::*;
 /// # const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
 /// let channel_id = 42;
-/// # let header = Header::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
+/// # let metadata = Metadata::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-/// # let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+/// # let writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
 /// let duration = 1000;
 /// let tries = 10;
 /// let reader = try_shm_reader(&test_tmp_dir.path(), channel_id, duration, tries).unwrap();
-/// println!("{:?}", reader.header());
+/// println!("{:?}", reader.metadata());
 ///
 /// ```
 pub fn try_shm_reader(root_path: &Path, channel_id: u64, duration_millis: u64, tries: u64) -> Result<ShmReader, ChannelError> {
@@ -119,7 +123,7 @@ pub fn try_shm_reader(root_path: &Path, channel_id: u64, duration_millis: u64, t
     let interval = duration_millis / tries;
     let sleep_duration = std::time::Duration::from_millis(interval);
     let mut reader_res = shm_reader(root_path, channel_id);
-    let mut tries_left = tries - 1;
+    let mut tries_left = tries;
     while reader_res.is_err() && tries_left > 0 {
         std::thread::sleep(sleep_duration);
         reader_res = shm_reader(root_path, channel_id);
@@ -135,7 +139,7 @@ pub fn try_shm_reader(root_path: &Path, channel_id: u64, duration_millis: u64, t
 /// # Arguments
 ///
 /// * `root_path` - The path to the folder where all the channels will be stored grouped by writers id.
-/// * `header` - a structure of type [Header](struct.Header.html) which contains the complete information required to create a channel.
+/// * `metadata` - a structure of type [Metadata](struct.Metadata.html) which contains the complete information required to create a channel.
 ///
 /// # Errors
 ///
@@ -144,23 +148,22 @@ pub fn try_shm_reader(root_path: &Path, channel_id: u64, duration_millis: u64, t
 /// # Examples
 ///
 /// ```
-/// use kekbit_core::tick::TickUnit::Nanos;
-/// use kekbit_core::shm::*;
-/// use kekbit_core::header::Header;
-/// use kekbit_core::api::Writer;
+/// use kekbit::core::TickUnit::Nanos;
+/// use kekbit::core::*;
+/// use kekbit::api::Writer;
 ///
 /// const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
 /// let channel_id = 42;
 /// let capacity = 3000;
 /// let max_msg_len = 100;
-/// let header = Header::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
+/// let metadata = Metadata::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-/// let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+/// let mut writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
 /// writer.heartbeat().unwrap();
 /// ```
-pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, ChannelError> {
-    let kek_file_path = storage_path(root_path, header.channel_id()).into_path_buf();
+pub fn shm_writer(root_path: &Path, metadata: &Metadata) -> Result<ShmWriter, ChannelError> {
+    let kek_file_path = storage_path(root_path, metadata.channel_id()).into_path_buf();
     if kek_file_path.exists() {
         return Err(StorageAlreadyExists {
             file_name: kek_file_path.to_str().unwrap().to_string(),
@@ -194,7 +197,7 @@ pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, Channe
                 file_name: err.to_string(),
             })
         })?;
-    let total_len = (header.capacity() + header.len() as u32 + FOOTER_LEN) as u64;
+    let total_len = (metadata.capacity() + metadata.len() as u32 + FOOTER_LEN) as u64;
     kek_file.set_len(total_len).or_else(|err| {
         Err(CouldNotAccessStorage {
             file_name: err.to_string(),
@@ -204,7 +207,7 @@ pub fn shm_writer(root_path: &Path, header: &Header) -> Result<ShmWriter, Channe
     let mut mmap =
         unsafe { MmapOptions::new().map_mut(&kek_file) }.or_else(|err| Err(MemoryMappingFailed { reason: err.to_string() }))?;
     let buf = &mut mmap[..];
-    header.write_to(buf);
+    metadata.write_to(buf);
     mmap.flush().or_else(|err| Err(AccessError { reason: err.to_string() }))?;
     info!("Kekbit channel with store {:?} succesfully initialized", kek_file_path);
     let res = ShmWriter::new(mmap);
@@ -237,12 +240,12 @@ pub fn storage_path(root_path: &Path, channel_id: u64) -> Box<Path> {
 
 #[cfg(test)]
 mod test {
+    use super::tick::TickUnit::Nanos;
+    use super::utils::{align, REC_HEADER_LEN};
     use super::*;
     use crate::api::ReadError;
     use crate::api::Reader;
     use crate::api::Writer;
-    use crate::tick::TickUnit::Nanos;
-    use crate::utils::{align, REC_HEADER_LEN};
     use std::sync::Arc;
     use std::sync::Once;
     use tempdir::TempDir;
@@ -253,11 +256,11 @@ mod test {
 
     #[test]
     fn check_max_len() {
-        let header = Header::new(100, 1000, 300_000, 1000, FOREVER, Nanos);
+        let metadata = Metadata::new(100, 1000, 300_000, 1000, FOREVER, Nanos);
         let test_tmp_dir = TempDir::new("kektest").unwrap();
-        let writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+        let writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
         let reader = shm_reader(&test_tmp_dir.path(), 1000).unwrap();
-        assert_eq!(writer.header(), reader.header());
+        assert_eq!(writer.metadata(), reader.metadata());
     }
 
     #[test]
@@ -265,9 +268,9 @@ mod test {
         INIT_LOG.call_once(|| {
             simple_logger::init().unwrap();
         });
-        let header = Header::new(100, 1000, 10000, 1000, FOREVER, Nanos);
+        let metadata = Metadata::new(100, 1000, 10000, 1000, FOREVER, Nanos);
         let test_tmp_dir = TempDir::new("kektest").unwrap();
-        let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+        let mut writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
         let txt = "There are 10 kinds of people: those who know binary and those who don't";
         let msgs = txt.split_whitespace();
         let mut msg_count = 0;
@@ -304,11 +307,11 @@ mod test {
         INIT_LOG.call_once(|| {
             simple_logger::init().unwrap();
         });
-        let header = Header::new(100, 1000, 10000, 1000, FOREVER, Nanos);
+        let metadata = Metadata::new(100, 1000, 10000, 1000, FOREVER, Nanos);
         let test_tmp_dir = TempDir::new("kektest").unwrap();
         let mut msg_count = 0;
         {
-            let mut writer = shm_writer(&test_tmp_dir.path(), &header).unwrap();
+            let mut writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
             let txt = "There are 10 kinds of people: those who know binary and those who don't";
             let msgs = txt.split_whitespace();
             for m in msgs {
@@ -392,8 +395,8 @@ mod test {
             let good_reader = try_shm_reader(&test_tmp_dir.path(), channel_id, 1000, 20);
             assert!(good_reader.is_err());
         });
-        let header = Header::new(100, 1000, 10000, 1000, FOREVER, Nanos);
-        shm_writer(&root_dir.path(), &header).unwrap();
+        let metadata = Metadata::new(100, 1000, 10000, 1000, FOREVER, Nanos);
+        shm_writer(&root_dir.path(), &metadata).unwrap();
         handle.join().unwrap();
     }
 }
