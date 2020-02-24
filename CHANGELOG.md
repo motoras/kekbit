@@ -8,11 +8,10 @@
 - Major refactoring of the various modules
 
 ### Changed
-  
+- Header struct was renamed Metadata
 - Error handling in ShmWriter
 - Encodable trait returns Result
 - The read method in Reader was renamed try_read, requires no callback handler, and returns an Option wrapped in a Result
-
 
 ### Removed
 - The codecs subcrate

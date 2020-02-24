@@ -1,9 +1,7 @@
 //! A chat sample which allows multiple instacnes to communicate
 //! by writing/reading messages from the console.
 use kekbit::api::Writer;
-use kekbit::core::Header;
-use kekbit::core::TickUnit;
-use kekbit::core::{shm_writer, try_shm_reader};
+use kekbit::core::*;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -14,8 +12,8 @@ const FOREVER: u64 = 999_999_999_999;
 fn run_writer(channel_id: u64, run: Arc<AtomicBool>) {
     let tmp_dir = std::env::temp_dir().join("kekchat");
     let msg_size = 1000;
-    let header = Header::new(1111, channel_id, msg_size * 1000, msg_size, FOREVER, TickUnit::Nanos);
-    let mut writer = shm_writer(&tmp_dir, &header).unwrap();
+    let metadata = Metadata::new(1111, channel_id, msg_size * 1000, msg_size, FOREVER, TickUnit::Nanos);
+    let mut writer = shm_writer(&tmp_dir, &metadata).unwrap();
     std::thread::yield_now();
     while run.load(Ordering::Relaxed) == true {
         let mut input = String::new();
