@@ -14,6 +14,10 @@ pub trait Encodable {
     fn encode(&self, w: &mut impl Write) -> Result<usize, Error>;
 }
 
+pub trait RecordHeader {
+    fn apply(&mut self, w: &mut impl Write) -> Result<usize, Error>;
+}
+
 impl<T: AsRef<[u8]>> Encodable for T {
     #[inline]
     fn encode(&self, w: &mut impl Write) -> Result<usize, Error> {
@@ -111,7 +115,7 @@ pub trait Writer {
     ///
     /// If the operation fails, than an error variant will be returned. Some errors such [EncodingError or NoSpaceForRecord](enum.WriteError.html) may
     /// allow future writes to succeed while others such [ChannelFull](enum.WriteError.html#ChannelFull) signals the end of life for the channel.
-    fn write(&mut self, data: &impl Encodable) -> Result<u32, WriteError>;
+    fn write<E: Encodable>(&mut self, data: &E) -> Result<u32, WriteError>;
     /// Writes into the stream a heartbeat message. This method shall be used by all writers
     /// which want to respect to timeout interval associated to a channel. Hearbeating is the
     /// expected mechanism by which a channel writer will keep the active readers interested in

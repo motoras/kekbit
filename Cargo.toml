@@ -9,11 +9,7 @@ homepage = "https://github.com/motoras/kekbit"
 repository="https://github.com/motoras/kekbit"
 keywords = [ "data-channel", "state-replication", "transactions-journal",  "ipc","system-prevalence"]
 readme = "README.md"
-include = [
-	"src/**/*",
-	"Cargo.toml",
-	"README.md"
-]
+
 
 [lib]
 name = "kekbit"
