@@ -19,12 +19,13 @@ const END_OF_TIME: u64 = std::u64::MAX; //this should be good for any time unit 
 /// ```
 /// # use kekbit::core::TickUnit::Nanos;
 /// use kekbit::core::*;
+/// use kekbit::api::*;
 /// # const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
 /// let channel_id = 42;
 /// # let metadata = Metadata::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-/// # let writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
+/// # let writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
 /// let reader = shm_reader(&test_tmp_dir.path(), channel_id).unwrap();
 /// println!("{:?}", reader.metadata());
 ///
@@ -127,13 +128,14 @@ impl Reader for ShmReader {
     /// ```
     /// # use kekbit::core::TickUnit::Nanos;
     /// use kekbit::core::*;
+    /// use kekbit::api::*;
     /// use crate::kekbit::api::Reader;
     /// # const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
     /// let channel_id = 42;
     /// # let metadata = Metadata::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-    /// # let writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
+    /// # let writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
     /// let mut reader = shm_reader(&test_tmp_dir.path(), channel_id).unwrap();
     /// match reader.try_read() {
     ///        Ok(Some(buf)) =>println!("Read {}", std::str::from_utf8(buf).unwrap()),

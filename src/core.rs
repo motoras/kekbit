@@ -1,4 +1,5 @@
 //! Provides the components and functions required to work with memory mapped data channels.
+mod handlers;
 mod metadata;
 mod reader;
 mod tick;
@@ -6,6 +7,7 @@ mod utils;
 mod version;
 mod writer;
 
+pub use handlers::*;
 pub use metadata::*;
 pub use reader::*;
 pub use tick::*;
@@ -16,7 +18,7 @@ use memmap::MmapOptions;
 
 use crate::api::ChannelError;
 use crate::api::ChannelError::*;
-use crate::api::RecordHeader;
+use crate::api::Handler;
 
 use crate::core::utils::FOOTER_LEN;
 use std::fs::OpenOptions;
@@ -42,12 +44,13 @@ use std::result::Result;
 /// ```
 /// # use kekbit::core::TickUnit::Nanos;
 /// use kekbit::core::*;
+/// use kekbit::api::*;
 /// # const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
 /// let channel_id = 42;
 /// # let metadata = Metadata::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-/// # let writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
+/// # let writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
 /// let reader = shm_reader(&test_tmp_dir.path(), channel_id).unwrap();
 /// println!("{:?}", reader.metadata());
 ///
@@ -107,12 +110,13 @@ pub fn shm_reader(root_path: &Path, channel_id: u64) -> Result<ShmReader, Channe
 /// ```
 /// # use kekbit::core::TickUnit::Nanos;
 /// use kekbit::core::*;
+/// use kekbit::api::*;
 /// # const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
 /// let channel_id = 42;
 /// # let metadata = Metadata::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-/// # let writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
+/// # let writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
 /// let duration = 1000;
 /// let tries = 10;
 /// let reader = try_shm_reader(&test_tmp_dir.path(), channel_id, duration, tries).unwrap();
@@ -151,7 +155,7 @@ pub fn try_shm_reader(root_path: &Path, channel_id: u64, duration_millis: u64, t
 /// ```
 /// use kekbit::core::TickUnit::Nanos;
 /// use kekbit::core::*;
-/// use kekbit::api::Writer;
+/// use kekbit::api::*;
 ///
 /// const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
@@ -160,10 +164,10 @@ pub fn try_shm_reader(root_path: &Path, channel_id: u64, duration_millis: u64, t
 /// let max_msg_len = 100;
 /// let metadata = Metadata::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-/// let mut writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
+/// let mut writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
 /// writer.heartbeat().unwrap();
 /// ```
-pub fn shm_writer<RH: RecordHeader>(root_path: &Path, metadata: &Metadata, rec_head: RH) -> Result<ShmWriter<RH>, ChannelError> {
+pub fn shm_writer<H: Handler>(root_path: &Path, metadata: &Metadata, rec_handler: H) -> Result<ShmWriter<H>, ChannelError> {
     let kek_file_path = storage_path(root_path, metadata.channel_id()).into_path_buf();
     if kek_file_path.exists() {
         return Err(StorageAlreadyExists {
@@ -211,7 +215,7 @@ pub fn shm_writer<RH: RecordHeader>(root_path: &Path, metadata: &Metadata, rec_h
     metadata.write_to(buf);
     mmap.flush().or_else(|err| Err(AccessError { reason: err.to_string() }))?;
     info!("Kekbit channel with store {:?} succesfully initialized", kek_file_path);
-    let res = ShmWriter::new(mmap, rec_head);
+    let res = ShmWriter::new(mmap, rec_handler);
     if res.is_err() {
         error!("Kekbit writer creation error . The file {:?} will be removed!", kek_file_path);
         remove_file(&kek_file_path).expect("Could not remove kekbit file");
@@ -244,10 +248,10 @@ mod test {
     use super::tick::TickUnit::Nanos;
     use super::utils::{align, REC_HEADER_LEN};
     use super::*;
+    use crate::api::EncoderHandler;
     use crate::api::ReadError;
     use crate::api::Reader;
     use crate::api::Writer;
-    use crate::decorators::NoRecHeader;
     use std::sync::Arc;
     use std::sync::Once;
     use tempdir::TempDir;
@@ -260,7 +264,7 @@ mod test {
     fn check_max_len() {
         let metadata = Metadata::new(100, 1000, 300_000, 1000, FOREVER, Nanos);
         let test_tmp_dir = TempDir::new("kektest").unwrap();
-        let writer = shm_writer(&test_tmp_dir.path(), &metadata, NoRecHeader::default()).unwrap();
+        let writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
         let reader = shm_reader(&test_tmp_dir.path(), 1000).unwrap();
         assert_eq!(writer.metadata(), reader.metadata());
     }
@@ -272,7 +276,7 @@ mod test {
         });
         let metadata = Metadata::new(100, 1000, 10000, 1000, FOREVER, Nanos);
         let test_tmp_dir = TempDir::new("kektest").unwrap();
-        let mut writer = shm_writer(&test_tmp_dir.path(), &metadata, NoRecHeader::default()).unwrap();
+        let mut writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
         let txt = "There are 10 kinds of people: those who know binary and those who don't";
         let msgs = txt.split_whitespace();
         let mut msg_count = 0;
@@ -313,7 +317,7 @@ mod test {
         let test_tmp_dir = TempDir::new("kektest").unwrap();
         let mut msg_count = 0;
         {
-            let mut writer = shm_writer(&test_tmp_dir.path(), &metadata, NoRecHeader::default()).unwrap();
+            let mut writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
             let txt = "There are 10 kinds of people: those who know binary and those who don't";
             let msgs = txt.split_whitespace();
             for m in msgs {
@@ -398,7 +402,7 @@ mod test {
             assert!(good_reader.is_err());
         });
         let metadata = Metadata::new(100, 1000, 10000, 1000, FOREVER, Nanos);
-        shm_writer(&root_dir.path(), &metadata, NoRecHeader::default()).unwrap();
+        shm_writer(&root_dir.path(), &metadata, EncoderHandler::default()).unwrap();
         handle.join().unwrap();
     }
 }

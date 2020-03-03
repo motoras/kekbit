@@ -1,9 +1,8 @@
 use super::utils::{align, store_atomic_u64, CLOSE, REC_HEADER_LEN, WATERMARK};
 use super::Metadata;
 use crate::api::ChannelError::AccessError;
-use crate::api::RecordHeader;
+use crate::api::Handler;
 use crate::api::{ChannelError, Encodable, WriteError, Writer};
-use crate::decorators::NoRecHeader;
 use log::{debug, error, info};
 use memmap::MmapMut;
 use std::cmp::min;
@@ -25,7 +24,7 @@ use std::sync::atomic::Ordering;
 /// use kekbit::core::TickUnit::Nanos;
 /// use kekbit::core::*;
 /// use kekbit::core::Metadata;
-/// use kekbit::api::Writer;
+/// use kekbit::api::*;
 ///
 /// const FOREVER: u64 = 99_999_999_999;
 /// let writer_id = 1850;
@@ -34,21 +33,21 @@ use std::sync::atomic::Ordering;
 /// let max_msg_len = 100;
 /// let metadata = Metadata::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-/// let mut writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
+/// let mut writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
 /// writer.heartbeat().unwrap();
 /// ```
-pub struct ShmWriter<RH: RecordHeader> {
+pub struct ShmWriter<H: Handler> {
     metadata: Metadata,
     data_ptr: *mut u8,
     write_offset: u32,
     mmap: MmapMut,
     write: KekWrite,
-    rc_header: RH,
+    rec_handler: H,
 }
 
-impl<RH: RecordHeader> ShmWriter<RH> {
+impl<H: Handler> ShmWriter<H> {
     #[allow(clippy::cast_ptr_alignment)]
-    pub(super) fn new(mut mmap: MmapMut, rc_header: RH) -> Result<ShmWriter<RH>, ChannelError> {
+    pub(super) fn new(mut mmap: MmapMut, rec_handler: H) -> Result<ShmWriter<H>, ChannelError> {
         let buf = &mut mmap[..];
         let metadata = Metadata::read(buf)?;
         let metadata_ptr = buf.as_ptr() as *mut u64;
@@ -61,7 +60,7 @@ impl<RH: RecordHeader> ShmWriter<RH> {
             write_offset: 0,
             mmap,
             write,
-            rc_header,
+            rec_handler,
         };
         info!(
             "Kekbit channel writer created. Size is {}MB. Max msg size {}KB",
@@ -90,7 +89,7 @@ impl<RH: RecordHeader> ShmWriter<RH> {
     }
 }
 
-impl<RH: RecordHeader> Writer for ShmWriter<RH> {
+impl<H: Handler> Writer for ShmWriter<H> {
     /// Writes a message into the channel. This operation will encode the data directly into  channel.
     /// While this is a non blocking operation, only one write should be executed at any given time.
     ///
@@ -111,7 +110,7 @@ impl<RH: RecordHeader> Writer for ShmWriter<RH> {
     /// ```
     /// use kekbit::core::TickUnit::Nanos;
     /// use kekbit::core::*;
-    /// use kekbit::api::Writer;
+    /// use kekbit::api::*;
     ///
     /// const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
@@ -120,7 +119,7 @@ impl<RH: RecordHeader> Writer for ShmWriter<RH> {
     /// let max_msg_len = 100;
     /// let metadata = Metadata::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-    /// let mut writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
+    /// let mut writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
     /// let msg = "There are 10 kinds of people: those who know binary and those who don't";
     /// let msg_data = msg.as_bytes();
     /// writer.write(&msg_data).unwrap();
@@ -135,9 +134,7 @@ impl<RH: RecordHeader> Writer for ShmWriter<RH> {
             return Err(WriteError::ChannelFull);
         }
         let len = min(self.metadata.max_msg_len(), available - REC_HEADER_LEN) as usize;
-        self.write.reset(write_ptr, len);
-        self.rc_header.apply(&mut self.write); //check for error
-        let write_res = data.encode(&mut self.write);
+        let write_res = self.rec_handler.handle(data, self.write.reset(write_ptr, len));
         match write_res {
             Ok(_) => {
                 if !self.write.failed {
@@ -191,7 +188,7 @@ impl<RH: RecordHeader> Writer for ShmWriter<RH> {
     /// ```
     /// use kekbit::core::TickUnit::Nanos;
     /// use kekbit::core::*;
-    /// use kekbit::api::Writer;
+    /// use kekbit::api::*;
     ///
     /// const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
@@ -200,7 +197,7 @@ impl<RH: RecordHeader> Writer for ShmWriter<RH> {
     /// let max_msg_len = 100;
     /// let metadata = Metadata::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
-    /// let mut writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
+    /// let mut writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
     /// let msg = "There are 10 kinds of people: those who know binary and those who don't";
     /// let msg_data = msg.as_bytes();
     /// writer.write(&msg_data).unwrap();
@@ -212,7 +209,8 @@ impl<RH: RecordHeader> Writer for ShmWriter<RH> {
         self.mmap.flush()
     }
 }
-impl<RH: RecordHeader> Drop for ShmWriter<RH> {
+
+impl<H: Handler> Drop for ShmWriter<H> {
     /// Marks this channel as `closed`, flushes the changes to the disk, and removes the memory mapping.
     fn drop(&mut self) {
         let write_index = self.write_offset;
@@ -232,7 +230,7 @@ impl<RH: RecordHeader> Drop for ShmWriter<RH> {
         }
     }
 }
-impl<RH: RecordHeader> ShmWriter<RH> {
+impl<H: Handler> ShmWriter<H> {
     ///Returns the amount of space in this channel still available for write.
     #[inline]
     pub fn available(&self) -> u32 {

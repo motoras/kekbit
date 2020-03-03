@@ -14,8 +14,28 @@ pub trait Encodable {
     fn encode(&self, w: &mut impl Write) -> Result<usize, Error>;
 }
 
-pub trait RecordHeader {
-    fn apply(&mut self, w: &mut impl Write) -> Result<usize, Error>;
+pub trait Handler {
+    #[inline]
+    fn incoming(&mut self, _w: &mut impl Write) -> Result<usize, Error> {
+        Ok(0)
+    }
+    #[inline]
+    fn outgoing(&mut self, _w: &mut impl Write) -> Result<usize, Error> {
+        Ok(0)
+    }
+    #[inline]
+    fn handle(&mut self, _d: &impl Encodable, w: &mut impl Write) -> Result<usize, Error> {
+        self.incoming(w).and_then(|_| self.outgoing(w))
+    }
+}
+
+#[derive(Default)]
+pub struct EncoderHandler {}
+impl Handler for EncoderHandler {
+    #[inline]
+    fn handle(&mut self, d: &impl Encodable, w: &mut impl Write) -> Result<usize, Error> {
+        d.encode(w)
+    }
 }
 
 impl<T: AsRef<[u8]>> Encodable for T {

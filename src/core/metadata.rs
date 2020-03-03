@@ -109,13 +109,14 @@ impl Metadata {
     /// # use kekbit::core::TickUnit::Nanos;
     /// # use kekbit::core::Metadata;
     /// use kekbit::core::*;
+    /// use kekbit::api::*;
     /// # const FOREVER: u64 = 99_999_999_999;
     /// let writer_id = 1850;
     /// let channel_id = 4242;
     /// # let metadata = Metadata::new(writer_id, channel_id, 300_000, 1000, FOREVER, Nanos);
     /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
     /// let dir_path = test_tmp_dir.path();
-    ///  # let writer = shm_writer(&test_tmp_dir.path(), &metadata).unwrap();
+    ///  # let writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
     ///
     /// let kek_file_name = storage_path(dir_path, channel_id);
     /// let kek_file = OpenOptions::new()
