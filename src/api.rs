@@ -189,8 +189,8 @@ pub trait Reader {
     fn try_read<'a>(&mut self) -> Result<Option<&'a [u8]>, ReadError>;
 
     ///Checks if the channel have been exhausted or is still active.  If the channel is active, a future read operation
-    /// may or may not succeed but it should be tried. No data will ever come from an exhausted channel.
-    /// Any read operation is futile.
+    /// may or may not succeed but it should be tried. No data will ever come from an exhausted channel,
+    /// any read operation is futile.
     ///
     /// Returns `None` if the channel is active, or `Some<ReadError>` if the channel hase been exhausted. The
     /// error returned is the reason for which the channel is considered exhausted.
