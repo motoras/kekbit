@@ -135,8 +135,13 @@ mod tests {
 
     #[test]
     fn check_nix_time() {
-        let t1 = Nanos.nix_time();
-        let t2 = Nanos.nix_time();
-        assert!(t1 <= t2);
+        let ticks = [Nanos, Micros, Millis];
+        let sleep_duration = std::time::Duration::from_millis(50);
+        for tick in &ticks {
+            let t1 = tick.nix_time();
+            std::thread::sleep(sleep_duration);
+            let t2 = tick.nix_time();
+            assert!(t1 < t2);
+        }
     }
 }

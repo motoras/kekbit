@@ -1,5 +1,5 @@
 use kekbit::api::ReadError::*;
-use kekbit::api::{Reader, Writer};
+use kekbit::api::{EncoderHandler, Reader, Writer};
 use kekbit::core::*;
 use std::process::exit;
 
@@ -17,7 +17,7 @@ pub fn run_writer() -> Result<(), ()> {
     info!("Creating writer process ...{}", getpid());
     let chunk_size = 100;
     let metadata = Metadata::new(100, 1000, chunk_size * (ITERATIONS + 100), 1000, 99999999999, TickUnit::Nanos);
-    let mut writer = shm_writer(&Path::new(Q_PATH), &metadata).unwrap();
+    let mut writer = shm_writer(&Path::new(Q_PATH), &metadata, EncoderHandler::default()).unwrap();
     let msg_bytes = "There are 10 kinds of people: those who know binary and those who don't".as_bytes();
     // let msgs: Vec<&str> = "There are 10 kinds of people: those who know binary and those who don't"
     //     .split_whitespace()
