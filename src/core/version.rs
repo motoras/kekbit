@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter, Result};
 use std::ops::Deref;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Debug)]
+#[repr(transparent)]
 pub(crate) struct Version {
     version: u64,
 }

@@ -2,46 +2,108 @@
 use std::io::Error;
 use std::io::Write;
 
-///An entity which can be written inside a channel
+///An entity which can be written into a channel
 pub trait Encodable {
-    ///Encodes an object into a `Write`. If during
-    ///the encoding operation an IO error occurs the operation should be cancelled.
+    /// Encodes an object into a `Write`. It could simply write the
+    /// raw binary representation of the data, or it could use some
+    /// well known data such JSON on Bincode.
     ///
+    /// # Arguments
+    ///
+    /// * `write` - A Writer used to push data into channel
     ///
     /// # Errors
     ///
-    /// If the encoding fails or an IO error occurs.
-    fn encode(&self, w: &mut impl Write) -> Result<usize, Error>;
+    /// If the encoding fails or an IO error occurs and the operation is cancelled.
+    fn encode(&self, write: &mut impl Write) -> Result<usize, Error>;
 }
 
-pub trait Handler {
-    #[inline]
-    fn incoming(&mut self, _w: &mut impl Write) -> Result<usize, Error> {
-        Ok(0)
-    }
-    #[inline]
-    fn outgoing(&mut self, _w: &mut impl Write) -> Result<usize, Error> {
-        Ok(0)
-    }
-    #[inline]
-    fn handle(&mut self, _d: &impl Encodable, w: &mut impl Write) -> Result<usize, Error> {
-        self.incoming(w).and_then(|_| self.outgoing(w))
-    }
-}
-
-#[derive(Default)]
-pub struct EncoderHandler {}
-impl Handler for EncoderHandler {
-    #[inline]
-    fn handle(&mut self, d: &impl Encodable, w: &mut impl Write) -> Result<usize, Error> {
-        d.encode(w)
-    }
-}
-
+///Any binary data is ready to be encoded into a channel.
 impl<T: AsRef<[u8]>> Encodable for T {
     #[inline]
     fn encode(&self, w: &mut impl Write) -> Result<usize, Error> {
         w.write(self.as_ref())
+    }
+}
+/// Handlers are components which will decorate a *write operation* .
+/// They can be use to add various metadata to a record(like timestamp, sequence id,
+/// universal unique id, check sum, record encoding type) either before or after
+/// a record was pushed into channel or to transform or even replace a record with
+/// a different one before it is pushed into a channel.
+///
+/// Handlers are composable by design so it is expected that multiple handlers will be chained
+/// together and used to process a record.
+///
+/// A handler will usually implement one or both of the `incoming/outgoing` methods.
+/// Most of the Handlers will leave the `handle` method unchanged. Metahandlers
+/// (handlers that compose other handlers) such handler chains or basic handler which
+/// do not expect to be chained or expect to be at the bottom of the chain may implement
+/// the hanlde method.
+pub trait Handler {
+    /// Action to be done *before* a record is pushed into channel.
+    /// Most common handlers will override this method, in order to add some header to a given record,
+    /// or to transform a record before is written into the channel.
+    ///
+    /// # Arguments
+    ///
+    /// * `_data` - Data to push data into channel
+    /// * `_write` - Write interface to channel
+    ///
+    /// # Errors
+    ///
+    /// If this method tries to write some data in the channel and the operation fails.
+    /// If the call fails no other handlers will be called and the write action will be aborted.
+    #[inline]
+    fn incoming(&mut self, _data: &impl Encodable, _write: &mut impl Write) -> Result<usize, Error> {
+        Ok(0)
+    }
+
+    /// Action to be done *after* a record is pushed into channel.
+    ///
+    /// # Arguments
+    ///
+    /// * `_data` - Data to push data into channel
+    /// * `_write` - Write interface to channel
+    ///
+    /// # Errors
+    ///
+    /// If this method tries to write some data in the channel and the operation fails.
+    /// If the call fails no other handlers will be called and the write action will be aborted.
+    #[inline]
+    fn outgoing(&mut self, _data: &impl Encodable, _write: &mut impl Write) -> Result<usize, Error> {
+        Ok(0)
+    }
+
+    /// Action to be done by this handler. By default this method will chain the `incoming` and  the `outgoing`
+    /// methods. Complex handlers may override this method to chain multiple handlers together.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - Data to push data into channel
+    /// * `write` - Write interface to channel    
+    ///
+    /// # Errors
+    ///
+    /// If this method tries to write some data in the channel and the operation fails.
+    /// If the call fails no other handlers will be called and the write action will be aborted.
+    #[inline]
+    fn handle(&mut self, data: &impl Encodable, w: &mut impl Write) -> Result<usize, Error> {
+        self.incoming(data, w).and_then(|_| self.outgoing(data, w))
+    }
+}
+
+/// The simplest and most important of all handlers. Just writes data into channel.
+/// If no data processing is required before the write operation, this handler is
+/// expected to be at the bottom of a handler chain. Also this is the perfect handler
+/// to use for the simplest of channels, the ones which do not want to append any metadata
+/// to a given record.
+#[derive(Default)]
+pub struct EncoderHandler {}
+impl Handler for EncoderHandler {
+    /// Writes the given encodable data in to a channel.
+    #[inline]
+    fn handle(&mut self, data: &impl Encodable, w: &mut impl Write) -> Result<usize, Error> {
+        data.encode(w)
     }
 }
 
