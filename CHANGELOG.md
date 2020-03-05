@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.1] 2020-03-05
+
+### Added
+
+- Handlers API
+- EncoderHandler, SequenceHandler and TimestampHandler
+- ChainedHandler for chaining multiple handlers
+
+### Changed
+
+- ShmWriter required a Handler type parameter
+- ShmWriter uses a handler to write a record into a channel
+
 ## [0.3.0] 2020-02-24
 
 ### Added

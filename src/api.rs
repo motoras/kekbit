@@ -36,8 +36,8 @@ impl<T: AsRef<[u8]>> Encodable for T {
 ///
 /// A handler will usually implement one or both of the `incoming/outgoing` methods.
 /// Most of the Handlers will leave the `handle` method unchanged. Metahandlers
-/// (handlers that compose other handlers) such handler chains or basic handler which
-/// do not expect to be chained or expect to be at the bottom of the chain may implement
+/// (handlers that compose other handlers) such handler chains or basic handlers which
+/// can be used directly or expect to be at the bottom of a handlers chain may implement
 /// the hanlde method.
 pub trait Handler {
     /// Action to be done *before* a record is pushed into channel.
