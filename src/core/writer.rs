@@ -1,6 +1,5 @@
 use super::utils::{align, store_atomic_u64, CLOSE, REC_HEADER_LEN, WATERMARK};
 use super::Metadata;
-use crate::api::ChannelError::AccessError;
 use crate::api::Handler;
 use crate::api::{ChannelError, Encodable, WriteError, Writer};
 use log::{debug, error, info};
@@ -34,7 +33,6 @@ use std::sync::atomic::Ordering;
 /// let metadata = Metadata::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
 /// let mut writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
-/// writer.heartbeat().unwrap();
 /// ```
 pub struct ShmWriter<H: Handler> {
     metadata: Metadata,
@@ -54,7 +52,7 @@ impl<H: Handler> ShmWriter<H> {
         let head_len = metadata.len();
         let data_ptr = unsafe { metadata_ptr.add(head_len) } as *mut u8;
         let write = KekWrite::new(data_ptr, metadata.max_msg_len() as usize);
-        let mut writer = ShmWriter {
+        let writer = ShmWriter {
             metadata,
             data_ptr,
             write_offset: 0,
@@ -67,16 +65,9 @@ impl<H: Handler> ShmWriter<H> {
             writer.metadata.capacity() / 1_000_000,
             writer.metadata.max_msg_len() / 1_000
         );
-        //sent the very first original heart bear
-        match writer.heartbeat() {
-            Ok(_) => {
-                info!("Initial hearbeat successfully sent!");
-                Ok(writer)
-            }
-            Err(we) => Err(AccessError {
-                reason: format!("Initial heartbeat failed!. Reason {:?}", we),
-            }),
-        }
+        //Set The WATERMARK
+        store_atomic_u64(writer.data_ptr as *mut u64, WATERMARK, Ordering::Release);
+        Ok(writer)
     }
 
     #[inline(always)]
@@ -149,29 +140,6 @@ impl<H: Handler> Writer for ShmWriter<H> {
             Err(io_err) => Err(WriteError::EncodingError(io_err)),
         }
     }
-    ///Push a heartbeat message into the channel. Hearbeats are zero sized messages which do not need encoding.
-    ///Reader should never activate callbacks for heartbeat messsages.
-    ///
-    /// Returns RecordHeaderLen, 8 in the current version if the operation succeeds.
-    ///
-    /// # Errors
-    ///
-    /// If the operation fails a *ChannelFull* error will be returned, which signals that the channel will not accept any new messages.
-    ///
-    #[allow(clippy::cast_ptr_alignment)]
-    #[inline]
-    fn heartbeat(&mut self) -> Result<u32, WriteError> {
-        let read_head_ptr = unsafe { self.data_ptr.add(self.write_offset as usize) };
-        let available = self.available();
-        if available <= REC_HEADER_LEN {
-            return Err(WriteError::ChannelFull);
-        }
-        let aligned_rec_len = REC_HEADER_LEN; //no need to align REC_HEADER)LEN must be align
-        self.write_metadata(read_head_ptr as *mut u64, 0u64, aligned_rec_len >> 3);
-        self.write_offset += aligned_rec_len;
-        Ok(aligned_rec_len)
-    }
-
     /// Flushes the channel's outstanding memory map modifications to disk. Calling  this method explicitly
     /// it is not encouraged as flushing does occur automatically and comes with a performance penalty.
     /// It should be used only if for various reasons a writer wants to persist the channel data to the disk
@@ -220,7 +188,7 @@ impl<H: Handler> Drop for ShmWriter<H> {
             //we should always have the 8 bytes required by CLOSE as they are acounted in the Footer
             let write_ptr = self.data_ptr.offset(write_index as isize) as *mut u64;
             store_atomic_u64(write_ptr, CLOSE, Ordering::Release);
-            info!("Closing message sent")
+            info!("Channel amrked as closed")
         }
         self.write_offset = self.mmap.len() as u32;
         if self.mmap.flush().is_ok() {

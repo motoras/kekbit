@@ -198,21 +198,6 @@ pub trait Writer {
     /// If the operation fails, than an error variant will be returned. Some errors such [EncodingError or NoSpaceForRecord](enum.WriteError.html) may
     /// allow future writes to succeed while others such [ChannelFull](enum.WriteError.html#ChannelFull) signals the end of life for the channel.
     fn write<E: Encodable>(&mut self, data: &E) -> Result<u32, WriteError>;
-    /// Writes into the stream a heartbeat message. This method shall be used by all writers
-    /// which want to respect to timeout interval associated to a channel. Hearbeating is the
-    /// expected mechanism by which a channel writer will keep the active readers interested in
-    /// the data published on the channel.
-    /// Heartbeat shall be done regularly at a time interval which ensures that at least one heartbeat
-    /// is sent between any two 'timeout' long intervals.
-    ///
-    /// Returns the total amount of bytes wrote into the channel or a `WriteError` if the write operation fails.
-    ///
-    /// # Errors
-    ///
-    /// If this call fails than an error variant will be returned. The errors are not recoverable,
-    /// they signal that the channel had reached the end of its lifetime.
-    fn heartbeat(&mut self) -> Result<u32, WriteError>;
-
     /// Flushes the stream which possibly backs the kekbit writer.
     /// By default this method does nothing, and should be implemented only for `Writer`s which it makes sense.
     /// Returns the success of the operation
@@ -239,8 +224,8 @@ pub enum ReadError {
 /// are called 'kekbit readers'. Usually a reader is bound to a given channel, and it is
 /// expected that multiple readers will safely access the same channel simultaneous.
 pub trait Reader {
-    ///Attempts to read a message from the channel without blocking.
-    ///This method will either read a message from the channel immediately or return if no data is available.
+    /// Attempts to read a message from the channel without blocking.
+    /// This method will either read a message from the channel immediately or return if no data is available.
     ///     
     /// Returns the next message available from the channel, if there is one, None otherwise.
     ///
@@ -250,7 +235,7 @@ pub trait Reader {
     ///
     fn try_read<'a>(&mut self) -> Result<Option<&'a [u8]>, ReadError>;
 
-    ///Checks if the channel have been exhausted or is still active.  If the channel is active, a future read operation
+    /// Checks if the channel have been exhausted or is still active.  If the channel is active, a future read operation
     /// may or may not succeed but it should be tried. No data will ever come from an exhausted channel,
     /// any read operation is futile.
     ///

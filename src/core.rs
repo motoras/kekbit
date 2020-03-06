@@ -165,7 +165,6 @@ pub fn try_shm_reader(root_path: &Path, channel_id: u64, duration_millis: u64, t
 /// let metadata = Metadata::new(writer_id, channel_id, capacity, max_msg_len, FOREVER, Nanos);
 /// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
 /// let mut writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
-/// writer.heartbeat().unwrap();
 /// ```
 pub fn shm_writer<H: Handler>(root_path: &Path, metadata: &Metadata, rec_handler: H) -> Result<ShmWriter<H>, ChannelError> {
     let kek_file_path = storage_path(root_path, metadata.channel_id()).into_path_buf();
@@ -280,7 +279,7 @@ mod test {
         let txt = "There are 10 kinds of people: those who know binary and those who don't";
         let msgs = txt.split_whitespace();
         let mut msg_count = 0;
-        let mut bytes_written = 8; //account for the initial heartbeat
+        let mut bytes_written = 0;
         for m in msgs {
             let to_wr = m.as_bytes();
             let len = to_wr.len() as u32;
