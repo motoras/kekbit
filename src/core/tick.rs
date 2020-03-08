@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 ///A TickUnit represents a specific time duration but does not maintain time information, it only helps define the time granularity
 ///required to used in various contexts by all kekbit components which *share a given channel*.
-///For each channel it's TickUnit will be spcified at creation and will *never be changed*
+///For each channel it's TickUnit will be specified at creation and will *never be changed*
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub enum TickUnit {
     ///TickUnit representing one thousandth of a microsecond.

@@ -2,9 +2,9 @@ use super::utils::{align, load_atomic_u64, CLOSE, REC_HEADER_LEN, U64_SIZE, WATE
 use super::Metadata;
 use crate::api::ReadError::*;
 use crate::api::{ChannelError, ReadError, Reader};
+use crate::core::TickUnit;
 use log::{error, info, warn};
 use memmap::MmapMut;
-use std::cmp::Ordering::*;
 use std::iter::Iterator;
 use std::result::Result;
 use std::sync::atomic::Ordering;
@@ -35,7 +35,6 @@ pub struct ShmReader {
     metadata: Metadata,
     data_ptr: *const u8,
     read_index: u32,
-    expiration: u64,
     failure: Option<ReadError>,
     _mmap: MmapMut,
 }
@@ -52,7 +51,6 @@ impl ShmReader {
             metadata,
             data_ptr,
             read_index: 0,
-            expiration: END_OF_TIME,
             failure: None,
             _mmap: mmap,
         })
@@ -68,7 +66,7 @@ impl ShmReader {
         self.read_index
     }
 
-    /// Returns A *non-blocking* iterator over messages in the channel.
+    /// Provides a *non-blocking* iterator over messages in the channel.
     ///
     /// Each call to [`next`] returns a message if there is one ready available. The iterator
     /// will never block waiting for a message to be available.
@@ -100,7 +98,7 @@ impl ShmReader {
     ///}
     ///
     #[inline]
-    pub fn try_iter(&mut self) -> TryIter {
+    pub fn try_iter(&mut self) -> TryIter<Self> {
         TryIter { inner: self }
     }
 
@@ -114,14 +112,14 @@ impl ShmReader {
 }
 impl Reader for ShmReader {
     #[allow(clippy::cast_ptr_alignment)]
-    ///Attempts to read a message from the channel without blocking.
-    ///This method will either read a message from the channel immediately or return if no data is available
+    /// Attempts to read a message from the channel without blocking.
+    /// This method will either read a message from the channel immediately or return if no data is available
     ///     
     /// Returns the next message available from the channel, if there is one, None otherwise.
     ///
     /// # Errors
-    /// Various [errors](enum.ReadError.html) may occur such: a `writer` timeout is detected, end of channel is reached, channel is closed or channel data is corrupted.
-    /// Once an error occurs, *any future read operation will fail*, so no more other records could ever be read from this channel.
+    /// Various [errors](enum.ReadError.html) may occur such: end of channel is reached, channel is closed or channel data is corrupted.
+    /// Once an error occurs tha channle will be *marked as exhausted* so *any future read operation will fail*.
     ///
     /// # Examples
     ///
@@ -147,55 +145,34 @@ impl Reader for ShmReader {
     ///
     #[allow(clippy::cast_ptr_alignment)]
     fn try_read<'a>(&mut self) -> Result<Option<&'a [u8]>, ReadError> {
-        loop {
-            //will simply skip all the hearbeats. We may add  a limit of the heartbeats we skip in the future if
-            //they proof to be too many.
-            let crt_index = self.read_index as usize;
-            debug_assert!(crt_index + U64_SIZE < self.metadata.capacity() as usize);
-            let rec_len: u64 = unsafe { load_atomic_u64(self.data_ptr.add(crt_index) as *mut u64, Ordering::Acquire) };
-            if rec_len <= self.metadata.max_msg_len() as u64 {
-                let rec_size = align(REC_HEADER_LEN + rec_len as u32);
-                debug_assert!((crt_index + rec_size as usize) < self.metadata.capacity() as usize);
-                self.expiration = END_OF_TIME;
-                self.read_index += rec_size;
-                if rec_len > 0 {
-                    //otherwise is a heartbeat
-                    return unsafe {
-                        Ok(Some(std::slice::from_raw_parts(
-                            self.data_ptr.add(crt_index + REC_HEADER_LEN as usize),
-                            rec_len as usize,
-                        )))
-                    };
+        let crt_index = self.read_index as usize;
+        debug_assert!(crt_index + U64_SIZE < self.metadata.capacity() as usize);
+        let rec_len: u64 = unsafe { load_atomic_u64(self.data_ptr.add(crt_index) as *mut u64, Ordering::Acquire) };
+        if rec_len <= self.metadata.max_msg_len() as u64 {
+            let rec_size = align(REC_HEADER_LEN + rec_len as u32);
+            debug_assert!((crt_index + rec_size as usize) < self.metadata.capacity() as usize);
+            self.read_index += rec_size;
+            debug_assert!(rec_len > 0);
+            unsafe {
+                Ok(Some(std::slice::from_raw_parts(
+                    self.data_ptr.add(crt_index + REC_HEADER_LEN as usize),
+                    rec_len as usize,
+                )))
+            }
+        } else {
+            match rec_len {
+                WATERMARK => Ok(None),
+                CLOSE => {
+                    info!("Producer closed channel");
+                    Err(self.record_failure(Closed))
                 }
-            } else {
-                return match rec_len {
-                    WATERMARK => {
-                        let tick = self.metadata.tick_unit().nix_time();
-                        match self.expiration.cmp(&tick) {
-                            Less | Equal => {
-                                warn!("Writer timeout detected. Channel will be abandoned. No more reads will be performed");
-                                Err(self.record_failure(Timeout(self.expiration)))
-                            }
-                            Greater => {
-                                if self.expiration == END_OF_TIME {
-                                    self.expiration = tick + self.metadata.timeout();
-                                }
-                                Ok(None)
-                            }
-                        }
-                    }
-                    CLOSE => {
-                        info!("Producer closed channel");
-                        Err(self.record_failure(Closed))
-                    }
-                    _ => {
-                        error!(
-                            "Channel corrupted. Unknown Marker {:#016X} at position {} ",
-                            rec_len, self.read_index,
-                        );
-                        Err(self.record_failure(Failed))
-                    }
-                };
+                _ => {
+                    error!(
+                        "Channel corrupted. Unknown Marker {:#016X} at position {} ",
+                        rec_len, self.read_index,
+                    );
+                    Err(self.record_failure(Failed))
+                }
             }
         }
     }
@@ -208,14 +185,93 @@ impl Reader for ShmReader {
     }
 }
 
+/// A Reader which decorates another reader with a channel timeout feature.
+/// As soon as this reader reaches the channel *watermark*, it starts a timer.
+/// If no new record is written into the channel until the timer triggers
+/// the channel will be marked as exhausted.
+/// Usually the timeout and the timeout tick unit will be read from a persistent
+/// channel metadata.
+pub struct TimeoutReader<R: Reader> {
+    inner: R,
+    tick: TickUnit,
+    to_interval: u64,
+    expiration: u64,
+    expired: Option<ReadError>,
+}
+
+impl<R: Reader> TimeoutReader<R> {
+    /// Creates a TimeoutReader which decorates the read method of the given reader
+    /// with a timeout functionality.
+    /// # Arguments
+    ///
+    /// * `reader` - The reader which will be decorated
+    /// * `tick` - The tick unit used to measure time
+    /// * `timeout` - The time interval in *ticks* after which this reader will
+    /// consider the channel exhausted if no new records were pushed into
+    ///
+    ///
+    #[inline]
+    pub fn new(reader: R, tick: TickUnit, timeout: u64) -> TimeoutReader<R> {
+        TimeoutReader {
+            inner: reader,
+            tick,
+            to_interval: timeout,
+            expiration: END_OF_TIME,
+            expired: None,
+        }
+    }
+
+    /// Provides a *non-blocking* iterator over messages in the channel.
+    #[inline]
+    pub fn try_iter(&mut self) -> TryIter<Self> {
+        TryIter { inner: self }
+    }
+}
+
+impl<R: Reader> Reader for TimeoutReader<R> {
+    /// Checks if a writer timeout occurred or the channel was exhausted
+    /// than delegates a call to the inner reader.
+    #[inline]
+    fn try_read<'b>(&mut self) -> Result<Option<&'b [u8]>, ReadError> {
+        match self.exhausted() {
+            Some(err) => Err(err),
+            None => {
+                let read_res = self.inner.try_read()?;
+                if read_res.is_none() {
+                    if self.expiration == END_OF_TIME {
+                        self.expiration = self.tick.nix_time() + self.to_interval;
+                    } else {
+                        let crt_time = self.tick.nix_time();
+                        if self.expiration <= crt_time {
+                            warn!("Writer timeout detected. Channel will be abandoned. No reads will be performed");
+                            self.expired = Some(Timeout(self.expiration));
+                            return Err(self.expired.unwrap());
+                        }
+                    }
+                    return Ok(None);
+                }
+                self.expiration = END_OF_TIME;
+                Ok(read_res)
+            }
+        }
+    }
+
+    /// Checks if the channel was exhausted or had timeout.
+    #[inline]
+    fn exhausted(&self) -> Option<ReadError> {
+        self.inner.exhausted().or_else(|| self.expired)
+    }
+}
+
 ///A non-blocking iterator over messages in the channel.
 ///Each call to `next` returns a message if there is one ready to be received.
 ///The iterator never blocks waiting for a message.
-pub struct TryIter<'a> {
-    inner: &'a mut ShmReader,
+#[repr(transparent)]
+pub struct TryIter<'a, R: Reader> {
+    inner: &'a mut R,
 }
 
-impl<'a> Iterator for TryIter<'a> {
+impl<'a, R: Reader> Iterator for TryIter<'a, R> {
     type Item = &'a [u8];
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
