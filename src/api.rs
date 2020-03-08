@@ -239,7 +239,7 @@ pub trait Reader {
     /// may or may not succeed but it should be tried. No data will ever come from an exhausted channel,
     /// any read operation is futile.
     ///
-    /// Returns `None` if the channel is active, or `Some<ReadError>` if the channel hase been exhausted. The
-    /// error returned is the reason for which the channel is considered exhausted.
+    /// Returns `None` if the channel is active, or `Some<ReadError>` if the channel has been exhausted.
+    /// The error returned is the reason for which the channel is considered exhausted.
     fn exhausted(&self) -> Option<ReadError>;
 }

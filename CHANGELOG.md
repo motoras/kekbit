@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.2] inDevelopment
+
+### Added
+- TimeoutReader which checks for writer timeout, and can decorate other readers
+
+### Removed 
+- ShmReader timeout checks
+- Heartbeat method from Writer
+- Special heartbeat handling in reader
+
+
 ## [0.3.1] 2020-03-05
 
 ### Added

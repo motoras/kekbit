@@ -136,6 +136,30 @@ pub fn try_shm_reader(root_path: &Path, channel_id: u64, duration_millis: u64, t
     }
     reader_res
 }
+/// Decorates a [ShmReader](struct.ShmReader.html) with a timeout functionality.
+///
+/// # Examples
+///
+/// ```
+/// # use kekbit::core::TickUnit::Millis;
+/// use kekbit::core::*;
+/// use kekbit::api::*;
+/// const TWO_SECS: u64 = 2000;
+/// let writer_id = 1850;
+/// let channel_id = 42;
+/// # let metadata = Metadata::new(writer_id, channel_id, 300_000, 1000, TWO_SECS, Millis);
+/// let test_tmp_dir = tempdir::TempDir::new("kektest").unwrap();
+/// # let writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
+/// let reader = shm_reader(&test_tmp_dir.path(), channel_id).unwrap();
+/// let timeout_reader = shm_timeout_reader(reader);
+/// ```
+#[inline]
+pub fn shm_timeout_reader(reader: ShmReader) -> TimeoutReader<ShmReader> {
+    let metadata = reader.metadata();
+    let tick = metadata.tick_unit();
+    let timeout = metadata.timeout();
+    TimeoutReader::new(reader, tick, timeout)
+}
 
 /// Creates a file backed memory mapped  kekbit channel and a writer associate with it.
 ///
@@ -224,7 +248,6 @@ pub fn shm_writer<H: Handler>(root_path: &Path, metadata: &Metadata, rec_handler
     res
 }
 
-#[inline]
 /// Returns the path to the file associated with a channel inside a kekbit root folder.
 ///
 /// # Arguments
@@ -233,6 +256,7 @@ pub fn shm_writer<H: Handler>(root_path: &Path, metadata: &Metadata, rec_handler
 ///   folders may exist in a system.  
 ///  * `channel_id` - Channel for which the file path will be returned
 ///
+#[inline]
 pub fn storage_path(root_path: &Path, channel_id: u64) -> Box<Path> {
     let high_val: u32 = (channel_id >> 32) as u32;
     let low_val = (channel_id & 0x0000_0000_FFFF_FFFF) as u32;
@@ -249,14 +273,15 @@ mod test {
     use super::*;
     use crate::api::EncoderHandler;
     use crate::api::ReadError;
+    use crate::api::ReadError::Timeout;
     use crate::api::Reader;
     use crate::api::Writer;
+    use crate::core::TickUnit::Millis;
     use std::sync::Arc;
     use std::sync::Once;
     use tempdir::TempDir;
 
     const FOREVER: u64 = 99_999_999_999;
-
     static INIT_LOG: Once = Once::new();
 
     #[test]
@@ -403,5 +428,29 @@ mod test {
         let metadata = Metadata::new(100, 1000, 10000, 1000, FOREVER, Nanos);
         shm_writer(&root_dir.path(), &metadata, EncoderHandler::default()).unwrap();
         handle.join().unwrap();
+    }
+    use assert_matches::assert_matches;
+    #[test]
+    fn read_with_timeout() {
+        INIT_LOG.call_once(|| {
+            simple_logger::init().unwrap();
+        });
+        let timeout = 50;
+        let metadata = Metadata::new(100, 1000, 10000, 1000, timeout, Millis);
+        let test_tmp_dir = TempDir::new("kektest").unwrap();
+        let mut writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
+        let txt = "Just a bad day";
+        writer.write(&txt.as_bytes()).unwrap();
+        let reader = shm_reader(&test_tmp_dir.path(), 1000).unwrap();
+        let mut timeout_reader = shm_timeout_reader(reader);
+        let mut msg_iter = timeout_reader.try_iter();
+        assert!(msg_iter.next().is_some());
+        assert!(msg_iter.next().is_none());
+        let sleep_duration = std::time::Duration::from_millis(timeout + 10);
+        std::thread::sleep(sleep_duration);
+        let timeout_msg = msg_iter.next();
+        assert!(timeout_msg.is_none());
+        assert_matches!(timeout_reader.exhausted().unwrap(), Timeout(_));
+        writer.flush().unwrap(); //not really necessary
     }
 }

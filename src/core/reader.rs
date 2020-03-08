@@ -66,7 +66,7 @@ impl ShmReader {
         self.read_index
     }
 
-    /// Returns A *non-blocking* iterator over messages in the channel.
+    /// Provides a *non-blocking* iterator over messages in the channel.
     ///
     /// Each call to [`next`] returns a message if there is one ready available. The iterator
     /// will never block waiting for a message to be available.
@@ -185,33 +185,52 @@ impl Reader for ShmReader {
     }
 }
 
-pub struct TimeoutReader<'a, R: Reader> {
-    inner: &'a mut R,
+/// A Reader which decorates another reader with a channel timeout feature.
+/// As soon as this reader reaches the channel *watermark*, it starts a timer.
+/// If no new record is written into the channel until the timer triggers
+/// the channel will be marked as exhausted.
+/// Usually the timeout and the timeout tick unit will be read from a persistent
+/// channel metadata.
+pub struct TimeoutReader<R: Reader> {
+    inner: R,
     tick: TickUnit,
     to_interval: u64,
     expiration: u64,
-    expired: bool,
+    expired: Option<ReadError>,
 }
 
-impl<'a, R: Reader> TimeoutReader<'a, R> {
+impl<R: Reader> TimeoutReader<R> {
+    /// Creates a TimeoutReader which decorates the read method of the given reader
+    /// with a timeout functionality.
+    /// # Arguments
+    ///
+    /// * `reader` - The reader which will be decorated
+    /// * `tick` - The tick unit used to measure time
+    /// * `timeout` - The time interval in *ticks* after which this reader will
+    /// consider the channel exhausted if no new records were pushed into
+    ///
+    ///
     #[inline]
-    pub fn new(reader: &'a mut R, tick: TickUnit, timeout: u64) -> TimeoutReader<'a, R> {
+    pub fn new(reader: R, tick: TickUnit, timeout: u64) -> TimeoutReader<R> {
         TimeoutReader {
             inner: reader,
             tick,
             to_interval: timeout,
             expiration: END_OF_TIME,
-            expired: false,
+            expired: None,
         }
     }
 
+    /// Provides a *non-blocking* iterator over messages in the channel.
     #[inline]
     pub fn try_iter(&mut self) -> TryIter<Self> {
         TryIter { inner: self }
     }
 }
 
-impl<'a, R: Reader> Reader for TimeoutReader<'a, R> {
+impl<R: Reader> Reader for TimeoutReader<R> {
+    /// Checks if a writer timeout occurred or the channel was exhausted
+    /// than delegates a call to the inner reader.
     #[inline]
     fn try_read<'b>(&mut self) -> Result<Option<&'b [u8]>, ReadError> {
         match self.exhausted() {
@@ -224,9 +243,9 @@ impl<'a, R: Reader> Reader for TimeoutReader<'a, R> {
                     } else {
                         let crt_time = self.tick.nix_time();
                         if self.expiration <= crt_time {
-                            self.expired = true;
                             warn!("Writer timeout detected. Channel will be abandoned. No reads will be performed");
-                            return Err(Timeout(self.expiration));
+                            self.expired = Some(Timeout(self.expiration));
+                            return Err(self.expired.unwrap());
                         }
                     }
                     return Ok(None);
@@ -237,11 +256,10 @@ impl<'a, R: Reader> Reader for TimeoutReader<'a, R> {
         }
     }
 
+    /// Checks if the channel was exhausted or had timeout.
     #[inline]
     fn exhausted(&self) -> Option<ReadError> {
-        self.inner
-            .exhausted()
-            .or_else(|| if self.expired { Some(Timeout(self.expiration)) } else { None })
+        self.inner.exhausted().or_else(|| self.expired)
     }
 }
 

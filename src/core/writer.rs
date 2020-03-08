@@ -70,10 +70,10 @@ impl<H: Handler> ShmWriter<H> {
         Ok(writer)
     }
 
-    #[inline(always)]
+    #[inline]
     fn write_metadata(&mut self, write_ptr: *mut u64, len: u64, aligned_rec_len: u32) {
         unsafe {
-            //we should always have the 8 bytes required by WATERMARK as they are acounted in the Footer
+            //we should always have space for the 8 bytes required by WATERMARK as they are acounted in the Footer
             store_atomic_u64(write_ptr.add(aligned_rec_len as usize), WATERMARK, Ordering::Release);
         }
         store_atomic_u64(write_ptr, len, Ordering::Release);
