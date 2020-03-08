@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.2] inDevelopment
+## [0.3.2] 2020-0308
 
 ### Added
 - TimeoutReader which checks for writer timeout, and can decorate other readers
