@@ -3,7 +3,7 @@
 ## [0.3.2] 2020-03-08
 
 ### Added
-- TimeoutReader which checks for writer timeout, and can decorate other readers
+- TimeoutReader, decorates other readesr  while checks for writer timeout
 
 ### Removed 
 - ShmReader timeout checks
