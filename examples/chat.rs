@@ -1,4 +1,4 @@
-//! A chat sample which allows multiple instacnes to communicate
+//! A chat sample which allows multiple instances to communicate
 //! by writing/reading messages from the console.
 use kekbit::api::EncoderHandler;
 use kekbit::api::Writer;
@@ -8,12 +8,12 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
-const FOREVER: u64 = 999_999_999_999;
+const TIMEOUT: u64 = 30;
 
 fn run_writer(channel_id: u64, run: Arc<AtomicBool>) {
     let tmp_dir = std::env::temp_dir().join("kekchat");
     let msg_size = 1000;
-    let metadata = Metadata::new(1111, channel_id, msg_size * 1000, msg_size, FOREVER, TickUnit::Nanos);
+    let metadata = Metadata::new(1111, channel_id, msg_size * 1000, msg_size, TIMEOUT, TickUnit::Secs);
     let mut writer = shm_writer(&tmp_dir, &metadata, EncoderHandler::default()).unwrap();
     std::thread::yield_now();
     while run.load(Ordering::Relaxed) == true {
@@ -38,7 +38,7 @@ fn run_reader(channel_id: u64, run: Arc<AtomicBool>) {
         println!("Could not connect to chat partner");
         std::process::exit(0);
     }
-    let mut reader = reader_res.unwrap();
+    let mut reader = shm_timeout_reader(reader_res.unwrap());
     while run.load(Ordering::Relaxed) == true {
         let mut msg_iter = reader.try_iter();
         for msg in &mut msg_iter {
