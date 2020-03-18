@@ -136,6 +136,7 @@ pub fn try_shm_reader(root_path: &Path, channel_id: u64, duration_millis: u64, t
     }
     reader_res
 }
+//This method should be removed as soon as metadata is exposed in the reader trait
 /// Decorates a [ShmReader](struct.ShmReader.html) with a timeout functionality.
 ///
 /// # Examples
@@ -155,10 +156,7 @@ pub fn try_shm_reader(root_path: &Path, channel_id: u64, duration_millis: u64, t
 /// ```
 #[inline]
 pub fn shm_timeout_reader(reader: ShmReader) -> TimeoutReader<ShmReader> {
-    let metadata = reader.metadata();
-    let tick = metadata.tick_unit();
-    let timeout = metadata.timeout();
-    TimeoutReader::new(reader, tick, timeout)
+    reader.into()
 }
 
 /// Creates a file backed memory mapped  kekbit channel and a writer associate with it.
@@ -319,15 +317,28 @@ mod test {
         assert_eq!(reader.position(), 0);
         let mut msg_iter = reader.try_iter();
         let mut res_txt = String::new();
-        for msg in &mut msg_iter {
-            let msg_str = std::str::from_utf8(&msg).unwrap();
-            if !res_txt.is_empty() {
-                res_txt.push_str(" ");
+        for read_res in &mut msg_iter {
+            match read_res {
+                ReadResult::Record(msg) => {
+                    let msg_str = std::str::from_utf8(&msg).unwrap();
+                    if !res_txt.is_empty() {
+                        res_txt.push_str(" ");
+                    }
+                    res_txt.push_str(msg_str);
+                    msg_count -= 1;
+                }
+                ReadResult::Nothing => {
+                    assert!(msg_count == 0);
+                    break;
+                }
+                ReadResult::Failed(err) => match err {
+                    ReadError::Closed => break,
+                    _ => {
+                        panic!("Unexpected read error {:?}", err);
+                    }
+                },
             }
-            res_txt.push_str(msg_str);
-            msg_count -= 1;
         }
-        assert!(msg_count == 0);
         assert_eq!(res_txt, txt);
         assert_eq!(bytes_written, reader.position());
     }
@@ -363,7 +374,7 @@ mod test {
         assert_eq!(sh2.0, 0);
         assert!(sh2.1.is_none());
         //consume it
-        let mut total = 1;
+        let mut total = 0;
         for _msg in &mut read_iter {
             total += 1
         }
@@ -444,13 +455,12 @@ mod test {
         let reader = shm_reader(&test_tmp_dir.path(), 1000).unwrap();
         let mut timeout_reader = shm_timeout_reader(reader);
         let mut msg_iter = timeout_reader.try_iter();
-        assert!(msg_iter.next().is_some());
-        assert!(msg_iter.next().is_none());
+        assert_matches!(msg_iter.next(), Some(ReadResult::Record(_)));
+        assert_matches!(msg_iter.next(), Some(ReadResult::Nothing));
         let sleep_duration = std::time::Duration::from_millis(timeout + 10);
         std::thread::sleep(sleep_duration);
-        let timeout_msg = msg_iter.next();
-        assert!(timeout_msg.is_none());
-        assert_matches!(timeout_reader.exhausted().unwrap(), Timeout(_));
+        assert_matches!(msg_iter.next(), Some(ReadResult::Failed(Timeout(_))));
+        assert_matches!(msg_iter.next(), None);
         writer.flush().unwrap(); //not really necessary
     }
 }

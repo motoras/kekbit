@@ -2,12 +2,12 @@
 //! than  wait for the matching replies on a separate channel. The requests are 3 u64 values:
 //! a request id, and 2 values which the repliers is suppose to sum them up.
 //! In order to start the requester type cargo run --example req <request_channel_id> <reply_channel_id>
-use crossbeam::utils::Backoff;
 use kekbit::api::EncoderHandler;
 use kekbit::api::Reader;
 use kekbit::api::Writer;
 use kekbit::core::TickUnit::Secs;
 use kekbit::core::*;
+use kekbit::retry::*;
 use std::collections::HashSet;
 
 #[inline]
@@ -43,7 +43,6 @@ fn main() {
         println!("Could not connect to replier. Giving up..");
         std::process::exit(1);
     }
-    let backoff = Backoff::new();
     let mut reader = reader_rep.unwrap();
     let mut waiting_for: HashSet<u64> = HashSet::new();
     let requests: Vec<(u64, u64)> = vec![(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)];
@@ -57,7 +56,6 @@ fn main() {
         writer.write(&msg).unwrap();
         println!("Sent request {} ", i);
         waiting_for.insert(idx);
-        backoff.snooze();
         //check for a reply, it may or may not have come yet
         reader.try_read().expect("Can't access replies queue").map(|bytes_msg| {
             let id = read_u64(&bytes_msg, 0);
@@ -68,18 +66,26 @@ fn main() {
     }
 
     //check for all replies which are missing
-    while !waiting_for.is_empty() {
-        let mut msg_iter = reader.try_iter();
-        for bytes_msg in &mut msg_iter {
-            let id = read_u64(&bytes_msg, 0);
-            let res = read_u64(&bytes_msg, 8);
-            waiting_for.remove(&id);
-            println!("Reply for request {} is {}.", id, res);
+    let mut msg_iter: RetryIter<ShmReader> = reader.try_iter().into();
+    for read_res in &mut msg_iter {
+        match read_res {
+            ReadResult::Record(msg) => {
+                let id = read_u64(&msg, 0);
+                let res = read_u64(&msg, 8);
+                waiting_for.remove(&id);
+                println!("Reply for request {} is {}.", id, res);
+                if waiting_for.is_empty() {
+                    break;
+                }
+            }
+            ReadResult::Nothing => {
+                //just hold your breath
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            ReadResult::Failed(err) => {
+                println!("Requests channel read error {:?}", err);
+                break;
+            }
         }
-        if msg_iter.size_hint().1 == Some(0) {
-            println!("Can't get replies for {:?}. Giving up!", waiting_for);
-            break;
-        }
-        backoff.spin();
     }
 }

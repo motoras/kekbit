@@ -7,7 +7,7 @@ license = "MIT"
 description = "Ultralight persistent data channels"
 homepage = "https://github.com/motoras/kekbit"
 repository="https://github.com/motoras/kekbit"
-keywords = [ "data-channel", "state-replication", "transactions-journal",  "ipc","system-prevalence"]
+keywords = ["data-channel", "state-replication", "transactions-journal",  "ipc","system-prevalence"]
 readme = "README.md"
 
 
@@ -24,11 +24,12 @@ maintenance = {status = "actively-developed"}
 [dependencies]
 memmap = "0.7.0"
 log = "0.4.8"
+crossbeam-utils  ="0.7.2"
 
 
 [dev-dependencies]
 tempdir = "0.3.7"
-simple_logger ="1.5.0"
+simple_logger ="1.6.0"
 nix="0.17.0"
 crossbeam ="0.7.3"
 assert_matches="1.3.0"

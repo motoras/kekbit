@@ -178,6 +178,10 @@ pub enum WriteError {
     NoSpaceForRecord,
     /// The encoding operation had failed
     EncodingError(Error),
+    /// You must wait until the channel is availble for write. When multiple threads
+    /// try to write into a channel, this error will be return if a given thread could
+    /// get write access to the channel
+    Wait,
 }
 
 ///The `Writer` trait allows writing chunk of bytes as records into a kekbit channel.

@@ -5,6 +5,7 @@ use crate::api::{ChannelError, ReadError, Reader};
 use crate::core::TickUnit;
 use log::{error, info, warn};
 use memmap::MmapMut;
+use std::iter::FusedIterator;
 use std::iter::Iterator;
 use std::result::Result;
 use std::sync::atomic::Ordering;
@@ -262,6 +263,22 @@ impl<R: Reader> Reader for TimeoutReader<R> {
         self.inner.exhausted().or_else(|| self.expired)
     }
 }
+//todo this  soulhd became generic on any T: Reader as sosna s we expose metada on Reader trait
+impl From<ShmReader> for TimeoutReader<ShmReader> {
+    #[inline]
+    fn from(reader: ShmReader) -> TimeoutReader<ShmReader> {
+        let metadata = reader.metadata();
+        let tick = metadata.tick_unit();
+        let timeout = metadata.timeout();
+        TimeoutReader::new(reader, tick, timeout)
+    }
+}
+#[derive(Debug)]
+pub enum ReadResult<'a> {
+    Record(&'a [u8]),
+    Nothing,
+    Failed(ReadError),
+}
 
 ///A non-blocking iterator over messages in the channel.
 ///Each call to `next` returns a message if there is one ready to be received.
@@ -272,14 +289,14 @@ pub struct TryIter<'a, R: Reader> {
 }
 
 impl<'a, R: Reader> Iterator for TryIter<'a, R> {
-    type Item = &'a [u8];
+    type Item = ReadResult<'a>;
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.inner.exhausted().is_none() {
             match self.inner.try_read() {
-                Ok(None) => None,
-                Ok(record) => record,
-                Err(_) => None,
+                Ok(None) => Some(ReadResult::Nothing),
+                Ok(Some(record)) => Some(ReadResult::Record(record)),
+                Err(fault) => Some(ReadResult::Failed(fault)),
             }
         } else {
             None
@@ -296,3 +313,5 @@ impl<'a, R: Reader> Iterator for TryIter<'a, R> {
         }
     }
 }
+
+impl<'a, R: Reader> FusedIterator for TryIter<'a, R> {}
