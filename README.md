@@ -35,7 +35,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-kekbit = "0.3.2"
+kekbit = "0.3.333"
 ```
 See the [Examples](https://github.com/motoras/kekbit/blob/master/examples/README.md) for detailed usage.
 
