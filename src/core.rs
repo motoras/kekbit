@@ -292,7 +292,7 @@ mod test {
     }
 
     #[test]
-    fn read_than_write() {
+    fn write_than_read() {
         INIT_LOG.call_once(|| {
             simple_logger::init().unwrap();
         });

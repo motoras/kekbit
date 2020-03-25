@@ -25,6 +25,7 @@ maintenance = {status = "actively-developed"}
 memmap = "0.7.0"
 log = "0.4.8"
 crossbeam-utils  ="0.7.2"
+parking_lot  ="0.10.0"
 
 
 [dev-dependencies]

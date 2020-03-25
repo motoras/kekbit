@@ -79,7 +79,7 @@ impl<H: Handler> ShmWriter<H> {
         store_atomic_u64(write_ptr, len, Ordering::Release);
     }
 }
-
+unsafe impl<H: Handler> Send for ShmWriter<H> {}
 impl<H: Handler> Writer for ShmWriter<H> {
     /// Writes a message into the channel. This operation will encode the data directly into  channel.
     /// While this is a non blocking operation, only one write should be executed at any given time.

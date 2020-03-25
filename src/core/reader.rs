@@ -111,6 +111,7 @@ impl ShmReader {
         failure
     }
 }
+
 impl Reader for ShmReader {
     #[allow(clippy::cast_ptr_alignment)]
     /// Attempts to read a message from the channel without blocking.
