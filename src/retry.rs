@@ -75,7 +75,7 @@ impl<W: Writer> RetryWriter<W> {
 impl<W: Writer> Writer for RetryWriter<W> {
     ///Tries to acquire the inner writer than writes the given message into channel.
     ///
-    ///	# Errors
+    /// # Errors
     ///
     /// Any error returned by the decorated writer will be passed on.
     /// WriteError::Wait will be returned if the inner writer cannot be acquired.
