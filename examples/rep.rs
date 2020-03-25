@@ -3,11 +3,11 @@
 //! a request id, and 2 values which the replier will add them up. The reply will be two
 //! u64 values: the id of the request and the sum of the two values from request.
 //! In order to start the replier type cargo run --example rep <reply_channel_id> <request_channel_id>
-use crossbeam::utils::Backoff;
 use kekbit::api::EncoderHandler;
 use kekbit::api::Writer;
 use kekbit::core::TickUnit::Secs;
 use kekbit::core::*;
+use kekbit::retry::*;
 
 #[inline]
 fn read_u64(data: &[u8], offset: usize) -> u64 {
@@ -49,31 +49,32 @@ fn main() {
         println!("Could not connect to request channel. Giving up..");
         std::process::exit(1);
     }
-    let backoff = Backoff::new();
     let mut reader = reader_rep.unwrap();
-    //tries to read the requests
-    loop {
-        let mut msg_iter = reader.try_iter();
-        for bytes_msg in &mut msg_iter {
-            let id = read_u64(&bytes_msg, 0);
-            println!("Got request {}", id);
-            let first = read_u64(&bytes_msg, 8);
-            let second = read_u64(&bytes_msg, 16);
-            //compute and sent the reply
-            let res: u64 = first + second;
-            let mut reply: [u8; 16] = [0; 16];
-            reply[0..8].clone_from_slice(&id.to_le_bytes());
-            reply[8..16].clone_from_slice(&res.to_le_bytes());
-            writer.write(&reply).unwrap();
-            println!("Reply for {} sent", id);
-        }
-        if msg_iter.size_hint().1 == Some(0) {
-            //If the upper bound of the size hint is 0 no more messages will ever come
-            //Errors include timeout or reaching the 'Close' marker
-            println!("No more requests to read");
-            break;
-        } else {
-            backoff.snooze();
+    let mut msg_iter: RetryIter<ShmReader> = reader.try_iter().into();
+
+    for read_res in &mut msg_iter {
+        match read_res {
+            ReadResult::Record(msg) => {
+                let id = read_u64(&msg, 0);
+                println!("Got request {}", id);
+                let first = read_u64(&msg, 8);
+                let second = read_u64(&msg, 16);
+                //compute and sent the reply
+                let res: u64 = first + second;
+                let mut reply: [u8; 16] = [0; 16];
+                reply[0..8].clone_from_slice(&id.to_le_bytes());
+                reply[8..16].clone_from_slice(&res.to_le_bytes());
+                writer.write(&reply).unwrap();
+                println!("Reply for {} sent", id);
+            }
+            ReadResult::Nothing => {
+                //just hold your breath
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            ReadResult::Failed(err) => {
+                println!("Requests channel read error {:?}", err);
+                break;
+            }
         }
     }
 }

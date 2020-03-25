@@ -1,9 +1,29 @@
 # Changelog
 
+## [0.3.3]
+
+### Added
+
+  - Non blocking retry iterator 
+  - Non blocking multithread writer.
+  - ReadResult struct
+  - Conversion method from ShmReader to TimeoutReader
+  - Conversion method form TryIter to the new RetryIter
+
+### Changed
+
+  - Iterators return type is now  ReadResult.
+  - Iterators are Fused
+
+### Removed
+
+  - shm_timeout_reader, just use instead the into method from ShmReader
+
+
 ## [0.3.2] 2020-03-08
 
 ### Added
-- TimeoutReader, decorates other readesr  while checks for writer timeout
+- TimeoutReader, decorates other readers  while checks for writer timeout
 
 ### Removed 
 - ShmReader timeout checks
