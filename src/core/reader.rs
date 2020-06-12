@@ -264,7 +264,7 @@ impl<R: Reader> Reader for TimeoutReader<R> {
         self.inner.exhausted().or_else(|| self.expired)
     }
 }
-//todo this  soulhd became generic on any T: Reader as sosna s we expose metada on Reader trait
+//todo this  soulhd became generic on any T: Reader as soon as we expose metada on Reader trait
 impl From<ShmReader> for TimeoutReader<ShmReader> {
     #[inline]
     fn from(reader: ShmReader) -> TimeoutReader<ShmReader> {

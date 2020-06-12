@@ -1,3 +1,4 @@
+//! Provides components which retry multiple times to read or write on the kebit store without blocking.s
 use crate::api::Encodable;
 use crate::api::Reader;
 use crate::api::WriteError;
@@ -10,7 +11,7 @@ use std::iter::FusedIterator;
 use std::iter::Iterator;
 use std::sync::Arc;
 
-/// A nonblocking iterator over messages in the channel, which tries multiple times to read
+/// A nonblocking iterator over messages in the channel which tries multiple times to read
 /// a message from a channel.
 #[repr(transparent)]
 pub struct RetryIter<'a, R: Reader> {
