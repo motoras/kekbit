@@ -1,4 +1,5 @@
 # Kekbit
+
 [![Cargo](https://img.shields.io/crates/v/kekbit.svg?color=blue)](
 https://crates.io/crates/kekbit)
 [![Documentation](https://docs.rs/kekbit/badge.svg)](https://docs.rs/kekbit)
@@ -13,16 +14,18 @@ Mean and lean components for working with ultralight **persistent data channels*
 
 ## Basic Concepts
 
-#### Persistent data channels
+### Persistent data channels
+
 * A mechanism to sequentially persist data at a very fast rate
 * They are **writer bound** - it is a writer which creates them and specify the particular structure of a channel such size, maximum record length, or timeout
-* They have a fixed predefined capacity. 
+* They have a fixed predefined capacity.
 * Once a channel is closed, is full, or is abandoned it will never be used again for writing.
 * They are byte-oriented sinks.
 * They are backed by a file; using a RAM disk for storage such as tempfs or /dev/shm could provide blazing fast speeds.
 * They always use little endian byte order.
 
-#### Writers and Readers
+### Writers and Readers
+
 * Writers are components which push data into a persistent channel. For each channel there is only one writer.
 * Write operation can be done in stages using a chain of handlers.
 * Readers are components which poll data from a channel. Data available in the channel could be consumed multiple times, sequential or in parallel by multiple readers.
@@ -37,6 +40,7 @@ Add this to your `Cargo.toml`:
 [dependencies]
 kekbit = "0.3.4"
 ```
+
 See the [Examples](https://github.com/motoras/kekbit/blob/master/examples/README.md) for detailed usage.
 
 ## Compatibility
@@ -45,12 +49,9 @@ The minimum supported Rust version is 1.31. Any change to this is considered a b
 
 ## License
 
-Licensed under 
+Licensed under  MIT license ([LICENSE](LICENSE) or http://opensource.org/licenses/MIT)
 
- * MIT license ([LICENSE](LICENSE) or http://opensource.org/licenses/MIT)
-
-
-#### Contribution
+### Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, shall be licensed as above, without any additional terms or conditions.
