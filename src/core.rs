@@ -266,10 +266,10 @@ mod test {
     use crate::api::Reader;
     use crate::api::Writer;
     use crate::core::TickUnit::Millis;
+    use simple_logger::SimpleLogger;
     use std::sync::Arc;
     use std::sync::Once;
     use tempdir::TempDir;
-
     const FOREVER: u64 = 99_999_999_999;
     static INIT_LOG: Once = Once::new();
 
@@ -285,7 +285,7 @@ mod test {
     #[test]
     fn write_than_read() {
         INIT_LOG.call_once(|| {
-            simple_logger::init().unwrap();
+            SimpleLogger::new().init().unwrap();
         });
         let metadata = Metadata::new(100, 1000, 10000, 1000, FOREVER, Nanos);
         let test_tmp_dir = TempDir::new("kektest").unwrap();
@@ -337,7 +337,7 @@ mod test {
     #[test]
     fn try_iterator_hint_size() {
         INIT_LOG.call_once(|| {
-            simple_logger::init().unwrap();
+            SimpleLogger::new().init().unwrap();
         });
         let metadata = Metadata::new(100, 1000, 10000, 1000, FOREVER, Nanos);
         let test_tmp_dir = TempDir::new("kektest").unwrap();
@@ -416,7 +416,7 @@ mod test {
     #[test]
     fn try_to_create_reader() {
         INIT_LOG.call_once(|| {
-            simple_logger::init().unwrap();
+            SimpleLogger::new().init().unwrap();
         });
         let test_tmp_dir = Arc::new(TempDir::new("kektest").unwrap());
         let never_reader = try_shm_reader(&test_tmp_dir.path(), 999_999, 300, 30);
@@ -435,7 +435,7 @@ mod test {
     #[test]
     fn read_with_timeout() {
         INIT_LOG.call_once(|| {
-            simple_logger::init().unwrap();
+            SimpleLogger::new().init().unwrap();
         });
         let timeout = 50;
         let metadata = Metadata::new(100, 1000, 10000, 1000, timeout, Millis);
