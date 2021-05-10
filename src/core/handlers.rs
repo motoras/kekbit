@@ -129,11 +129,11 @@ mod tests {
         seq_handler.handle(&"Doesn't matter".to_string(), c).unwrap();
         seq_handler.handle(&"Doesn't matter".to_string(), c).unwrap();
         c.set_position(0);
-        for i in 0..3 {
+        for exp in expected.iter().take(3) {
             let mut res = vec![0u8; 8];
             c.read_exact(&mut res).unwrap();
             let id = u64::from_le_bytes(res[..].try_into().unwrap());
-            assert_eq!(id, expected[i]);
+            assert_eq!(*exp, id);
         }
         assert_eq!(seq_handler.seq, 50);
         let seq_handler_def = SequenceHandler::default();
@@ -155,11 +155,11 @@ mod tests {
         chain.handle(&"Doesn't matter".to_string(), c).unwrap();
         let expected = vec![-1, 3, 2, 1, 1, 2, 3, -1];
         c.set_position(0);
-        for i in 0..8 {
+        for exp in expected.iter() {
             let mut res = vec![0u8; 8];
             c.read_exact(&mut res).unwrap();
             let id = i64::from_le_bytes(res[..].try_into().unwrap());
-            assert_eq!(id, expected[i]);
+            assert_eq!(*exp, id);
         }
     }
 

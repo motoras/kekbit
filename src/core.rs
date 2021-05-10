@@ -313,7 +313,7 @@ mod test {
                 ReadResult::Record(msg) => {
                     let msg_str = std::str::from_utf8(&msg).unwrap();
                     if !res_txt.is_empty() {
-                        res_txt.push_str(" ");
+                        res_txt.push(' ');
                     }
                     res_txt.push_str(msg_str);
                     msg_count -= 1;

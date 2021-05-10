@@ -291,15 +291,15 @@ mod test {
         let r1 = kw.write(&d1).unwrap();
         assert_eq!(kw.total, r1);
         assert!(!kw.failed);
-        for i in 0..10 {
-            assert_eq!(raw_data[i], 1);
+        for rd in raw_data.iter().take(10) {
+            assert_eq!(*rd, 1u8);
         }
         kw.flush().unwrap(); //should never crash as it does nothing
         let r2 = kw.write(&d1).unwrap();
         assert_eq!(kw.total, r1 + r2);
         assert!(!kw.failed);
-        for i in 10..20 {
-            assert_eq!(raw_data[i], 1);
+        for rd in raw_data.iter().take(20).skip(10) {
+            assert_eq!(*rd, 1u8);
         }
         let r3 = kw.write(&d1);
         assert_eq!(r3.unwrap_err().kind(), std::io::ErrorKind::WriteZero);
@@ -310,8 +310,8 @@ mod test {
         let r4 = kw.write(&d2).unwrap();
         assert_eq!(kw.total, r4);
         assert!(!kw.failed);
-        for i in 0..10 {
-            assert_eq!(raw_data[i], 2);
+        for rd in raw_data.iter().take(10) {
+            assert_eq!(*rd, 2u8);
         }
         assert_eq!(kw.total, 10);
         let r5 = kw.write(&d2);

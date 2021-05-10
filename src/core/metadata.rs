@@ -188,7 +188,6 @@ impl Metadata {
         let tick_unit = TickUnit::from_id(metadata[offset]);
         //offset += 1;
         Ok(Metadata {
-            version,
             writer_id,
             channel_id,
             capacity,
@@ -196,6 +195,7 @@ impl Metadata {
             timeout,
             creation_time,
             tick_unit,
+            version,
         })
     }
     ///Writes kekbit metadata to a memory mapepd file.

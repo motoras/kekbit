@@ -1,12 +1,12 @@
 use kekbit::api::ReadError::*;
 use kekbit::api::{EncoderHandler, Reader, Writer};
 use kekbit::core::*;
-use std::process::exit;
-
 use log::{error, info};
 use nix::sys::wait::waitpid;
 use nix::unistd::{fork, getpid, ForkResult};
+use simple_logger::SimpleLogger;
 use std::path::Path;
+use std::process::exit;
 use std::result::Result;
 
 const ITERATIONS: u32 = 1 * 1_000_000_0;
@@ -86,7 +86,7 @@ pub fn run_reader() -> Result<(), ()> {
 }
 
 fn main() {
-    simple_logger::init().unwrap();
+    SimpleLogger::new().init().unwrap();
     info!("Kekbit Driver PID is {}.", getpid());
     let w_pid = match fork() {
         Ok(ForkResult::Child) => {
