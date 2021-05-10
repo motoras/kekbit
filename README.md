@@ -3,7 +3,7 @@
 [![Cargo](https://img.shields.io/crates/v/kekbit.svg?color=blue)](
 https://crates.io/crates/kekbit)
 [![Documentation](https://docs.rs/kekbit/badge.svg)](https://docs.rs/kekbit)
-[![Rust 1.31+](https://img.shields.io/badge/rust-1.31+-important.svg)](
+[![Rust 1.40+](https://img.shields.io/badge/rust-1.40+-important.svg)](
 https://www.rust-lang.org)
 [![GitHub](https://img.shields.io/github/license/motoras/kekbit?color=important)](https://github.com/motoras/kekbit/blob/master/LICENSE)
 [![Build](https://github.com/motoras/kekbit/workflows/Build/badge.svg)](https://github.com/motoras/kekbit/actions?query=workflow%3ABuild)
