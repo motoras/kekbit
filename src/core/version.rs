@@ -44,10 +44,16 @@ impl Version {
     }
 }
 
-impl Into<u64> for Version {
-    #[inline]
-    fn into(self) -> u64 {
-        self.version
+// impl Into<u64> for Version {
+//     #[inline]
+//     fn into(self) -> u64 {
+//         self.version
+//     }
+// }
+
+impl From<Version> for u64 {
+    fn from(version: Version) -> Self {
+        version.version
     }
 }
 
@@ -85,5 +91,15 @@ mod tests {
             assert!(v_u64 == *v);
             assert!(format!("{}", v) == format!("{}.{}.{}", i, i, i));
         }
+    }
+
+    #[test]
+    fn check_conversion() {
+        let v1 = Version::new(1, 2, 3);
+        let v_u64: u64 = v1.into();
+        let v2 = Version::from(v_u64);
+        assert_eq!(v1, v2);
+        let v3: Version = v_u64.into();
+        assert_eq!(v1, v3);
     }
 }
