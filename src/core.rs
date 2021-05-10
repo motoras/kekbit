@@ -72,15 +72,12 @@ pub fn shm_reader(root_path: &Path, channel_id: u64) -> Result<ShmReader, Channe
         .write(true)
         .read(true)
         .open(&kek_file_path)
-        .or_else(|err| {
-            Err(CouldNotAccessStorage {
-                file_name: err.to_string(),
-            })
+        .map_err(|err| CouldNotAccessStorage {
+            file_name: err.to_string(),
         })?;
 
     info!("Kekbit file {:?} opened for read.", kek_file);
-    let mmap =
-        unsafe { MmapOptions::new().map_mut(&kek_file) }.or_else(|err| Err(MemoryMappingFailed { reason: err.to_string() }))?;
+    let mmap = unsafe { MmapOptions::new().map_mut(&kek_file) }.map_err(|err| MemoryMappingFailed { reason: err.to_string() })?;
     ShmReader::new(mmap)
 }
 
@@ -197,20 +194,18 @@ pub fn shm_writer<H: Handler>(root_path: &Path, metadata: &Metadata, rec_handler
     }
     let mut builder = DirBuilder::new();
     builder.recursive(true);
-    builder.create(&kek_file_path.parent().unwrap()).or_else(|err| {
-        Err(CouldNotAccessStorage {
+    builder
+        .create(&kek_file_path.parent().unwrap())
+        .map_err(|err| CouldNotAccessStorage {
             file_name: err.to_string(),
-        })
-    })?;
+        })?;
     let kek_lock_path = kek_file_path.with_extension("lock");
     OpenOptions::new()
         .write(true)
         .create(true)
         .open(&kek_lock_path)
-        .or_else(|err| {
-            Err(CouldNotAccessStorage {
-                file_name: err.to_string(),
-            })
+        .map_err(|err| CouldNotAccessStorage {
+            file_name: err.to_string(),
         })?;
     info!("Kekbit lock {:?} created", kek_lock_path);
     let kek_file = OpenOptions::new()
@@ -218,23 +213,19 @@ pub fn shm_writer<H: Handler>(root_path: &Path, metadata: &Metadata, rec_handler
         .read(true)
         .create(true)
         .open(&kek_file_path)
-        .or_else(|err| {
-            Err(CouldNotAccessStorage {
-                file_name: err.to_string(),
-            })
+        .map_err(|err| CouldNotAccessStorage {
+            file_name: err.to_string(),
         })?;
     let total_len = (metadata.capacity() + metadata.len() as u32 + FOOTER_LEN) as u64;
-    kek_file.set_len(total_len).or_else(|err| {
-        Err(CouldNotAccessStorage {
-            file_name: err.to_string(),
-        })
+    kek_file.set_len(total_len).map_err(|err| CouldNotAccessStorage {
+        file_name: err.to_string(),
     })?;
     info!("Kekbit channel store {:?} created.", kek_file);
     let mut mmap =
-        unsafe { MmapOptions::new().map_mut(&kek_file) }.or_else(|err| Err(MemoryMappingFailed { reason: err.to_string() }))?;
+        unsafe { MmapOptions::new().map_mut(&kek_file) }.map_err(|err| MemoryMappingFailed { reason: err.to_string() })?;
     let buf = &mut mmap[..];
     metadata.write_to(buf);
-    mmap.flush().or_else(|err| Err(AccessError { reason: err.to_string() }))?;
+    mmap.flush().map_err(|err| AccessError { reason: err.to_string() })?;
     info!("Kekbit channel with store {:?} succesfully initialized", kek_file_path);
     let res = ShmWriter::new(mmap, rec_handler);
     if res.is_err() {

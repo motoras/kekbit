@@ -261,7 +261,7 @@ impl<R: Reader> Reader for TimeoutReader<R> {
     /// Checks if the channel was exhausted or had timeout.
     #[inline]
     fn exhausted(&self) -> Option<ReadError> {
-        self.inner.exhausted().or_else(|| self.expired)
+        self.inner.exhausted().or(self.expired)
     }
 }
 //todo this  soulhd became generic on any T: Reader as soon as we expose metada on Reader trait
