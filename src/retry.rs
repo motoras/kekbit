@@ -105,7 +105,7 @@ mod test {
     use super::*;
     use crate::api::*;
     use crate::core::*;
-    use assert_matches::*;
+    use assert_matches::assert_matches as match_assert;
     use tempdir::TempDir;
     #[test]
     fn retry_iter() {
@@ -116,20 +116,20 @@ mod test {
         let mut writer = shm_writer(&test_tmp_dir.path(), &metadata, EncoderHandler::default()).unwrap();
         let mut reader = shm_reader(&test_tmp_dir.path(), 1000).unwrap();
         let mut retry_iter: RetryIter<ShmReader> = reader.try_iter().into();
-        assert_matches!(retry_iter.size_hint(), (0, None));
-        assert_matches!(retry_iter.next(), Some(ReadResult::Nothing));
+        match_assert!(retry_iter.size_hint(), (0, None));
+        match_assert!(retry_iter.next(), Some(ReadResult::Nothing));
         for _i in 0..3 {
             let to_wr = msgs.next().unwrap().as_bytes();
             writer.write(&to_wr).unwrap();
         }
         for _i in 0..3 {
-            assert_matches!(retry_iter.next(), Some(ReadResult::Record(_)));
+            match_assert!(retry_iter.next(), Some(ReadResult::Record(_)));
         }
-        assert_matches!(retry_iter.next(), Some(ReadResult::Nothing));
+        match_assert!(retry_iter.next(), Some(ReadResult::Nothing));
         std::mem::drop(writer);
-        assert_matches!(retry_iter.next(), Some(ReadResult::Failed(ReadError::Closed)));
-        assert_matches!(retry_iter.next(), None);
-        assert_matches!(retry_iter.size_hint(), (0, Some(0)));
+        match_assert!(retry_iter.next(), Some(ReadResult::Failed(ReadError::Closed)));
+        match_assert!(retry_iter.next(), None);
+        match_assert!(retry_iter.size_hint(), (0, Some(0)));
     }
 
     #[test]
