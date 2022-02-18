@@ -1,10 +1,17 @@
 # Changelog
 
+## [0.3.5] 2022-02-18
+
+### Changed
+
+- All dependencies are now uptodate
+
+
 ## [0.3.4] 2021-05-10
 
 ### Changed
 
-- Fixed issue number 34  `ShmWriter allows sending non-Send type across threads`
+- Fixed issue number 34 `ShmWriter allows sending non-Send type across threads`
 
 ## [0.3.3] 2020-03-25
 
@@ -18,7 +25,7 @@
 
 ### Changed
 
-- Iterators return type is now  ReadResult.
+- Iterators return type is now `ReadResult`.
 - Iterators are Fused
 
 ### Removed
@@ -29,7 +36,7 @@
 
 ### Added
 
-- TimeoutReader, decorates other readers  while checks for writer timeout
+- TimeoutReader, decorates other readers while checks for writer timeout
 
 ### Removed 
 
@@ -111,7 +118,7 @@
 ### Added
 
 - Initial definition of the Writer and Reader traits
-- Implementations of the Writer and Reader traits with a backend  based on memory mapped files
+- Implementations of the Writer and Reader traits with a backend based on memory mapped files
 - Initial definition of the kekbit channel metadata
 - Channel metadata validation
 - The echo sample

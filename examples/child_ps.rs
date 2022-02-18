@@ -88,28 +88,10 @@ pub fn run_reader() -> Result<(), ()> {
 fn main() {
     SimpleLogger::new().init().unwrap();
     info!("Kekbit Driver PID is {}.", getpid());
-    let w_pid = match fork() {
-        Ok(ForkResult::Child) => {
-            exit(match run_writer() {
-                Ok(_) => 0,
-                Err(err) => {
-                    error!("error: {:?}", err);
-                    1
-                }
-            });
-        }
-
-        Ok(ForkResult::Parent { child, .. }) => child,
-
-        Err(err) => {
-            panic!("[main] writer fork() failed: {}", err);
-        }
-    };
-    let mut rpids = Vec::new();
-    for _i in 0..1 {
-        let r_pid = match fork() {
+    let w_pid = unsafe {
+        match fork() {
             Ok(ForkResult::Child) => {
-                exit(match run_reader() {
+                exit(match run_writer() {
                     Ok(_) => 0,
                     Err(err) => {
                         error!("error: {:?}", err);
@@ -121,7 +103,29 @@ fn main() {
             Ok(ForkResult::Parent { child, .. }) => child,
 
             Err(err) => {
-                panic!("[main] reader fork() failed: {}", err);
+                panic!("[main] writer fork() failed: {}", err);
+            }
+        }
+    };
+    let mut rpids = Vec::new();
+    for _i in 0..1 {
+        let r_pid = unsafe {
+            match fork() {
+                Ok(ForkResult::Child) => {
+                    exit(match run_reader() {
+                        Ok(_) => 0,
+                        Err(err) => {
+                            error!("error: {:?}", err);
+                            1
+                        }
+                    });
+                }
+
+                Ok(ForkResult::Parent { child, .. }) => child,
+
+                Err(err) => {
+                    panic!("[main] reader fork() failed: {}", err);
+                }
             }
         };
         rpids.push(r_pid);
